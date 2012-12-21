@@ -514,6 +514,9 @@ if __name__=="__main__":
 
         print("Daemon is now running")
 
+        if notifications:
+            n.admin_message("Daemon running for %s" % (run),"")
+
         if no_watch == False:
                 watchRunFolder(run,3600)
 

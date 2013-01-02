@@ -14,6 +14,7 @@ import MySQLdb as mdb
 
 # NOTE: Sequences that are upload to annoj should only be what the snip string specifies not the entire sequence
 # NOTE: Bowtie 2 should auto-magically run seperate analysis if the reads are paired-end. COS IT DON"T!!
+# NOTE: Log the command used in to the log file
 
 # Classes and Functions
 class MyParser(argparse.ArgumentParser):
@@ -29,7 +30,7 @@ class notification(object):
         self.password = "g3n0m3analysis"
         self.FROM     = "genomic.analysis.ecker@gmail.com"
 
-        self.admin    = "jnery@salk.edu"
+        self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu"]
 
     def send_message(self,TO,SUBJECT,TEXT):
         """
@@ -78,7 +79,7 @@ class notification(object):
             self.send_message([email],"Bcl Run Complete!",text)
 
     def admin_message(self,SUBJECT,TEXT):
-        self.send_message([self.admin],SUBJECT,TEXT)
+        self.send_message(self.admin,SUBJECT,TEXT)
 
     def bcl_start_blast(self,run,owners_and_samples):
         """
@@ -273,7 +274,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples):
 
         for sample in annoj_samples[project]:
 
-            sample_folder = run + "/Unaligned_bcl_test/Project_" + project + "/Sample_" + sample[0]
+            sample_folder = run + "/Unaligned/Project_" + project + "/Sample_" + sample[0]
 
             # Parse the information from the Sample
             sample_name = sample[0]
@@ -518,7 +519,7 @@ if __name__=="__main__":
             n.admin_message("Daemon running for %s" % (run),"")
 
         if no_watch == False:
-                watchRunFolder(run,3600)
+                watchRunFolder(run,600)
 
         if notifications:
             n.admin_message("Bcl Started for %s" % (run),"")

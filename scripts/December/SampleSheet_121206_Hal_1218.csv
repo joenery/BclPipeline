@@ -1,0 +1,5 @@
+D,Lane,Sample,Sample_Ref,Index,Descriptor,Control_lane,Recipe,Operator,Project
+,8,100bp_HangAd_T4NEB,B6,GCCAAT,;;,,,,
+,8,100bp_HangAd_T4Pro,B8,ACTTGA,;;,,,,
+,8,100bp_TruSeq_Meth,27,ATTCCT,;;,,,,
+,8,PCRnomC,25,ACTGAT,;;,,,,

@@ -1,0 +1,4 @@
+D,Lane,Sample,Sample_Ref,Index,Descriptor,Control_lane,Recipe,Operator,Project
+,6,DAP_ESE3,1,CGTGAT,bt;thumper-e2;dip,,,aaaa@salk.edu,DAP
+,8,O,16,GGACGG,;;,,,bbbb@salk.edu,Bennett
+,6,Cesars_5ml#1_NEB,tDNA_Ad1,,bt;;,,,cccc@salk.edu,TDNA

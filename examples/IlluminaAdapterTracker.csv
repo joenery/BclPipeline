@@ -1,0 +1,6 @@
+Date,Name,Email,TruSeq_Adapter_#,Project_Name,Sample_Name,Sequence,Notes,Bowtie (Optional),MySQL Host (Optional),MySQl Database (Optional),Run,Lane,Server_Location,Run Name
+121212,Anna,aaaa@salk.edu,1,DAP,DAP_ESE3,CGTGAT,RC INDEX,bt,thumper-e2,dip,121222_Jonas_2136,6,Data_4,
+,,,,,,,,,,,,,,
+122112,Bennett,bbbb@salk.edu,16,Bennett,O,GGACGG,RC INDEX,,,,121222_Jonas_2136,8,Data_4,
+,,,,,,,,,,,,,,
+121212,Rosa,cccc@salk.edu,tDNA_Ad1,TDNA,Cesar`s_5ml#1_NEB,,,bt,,,121222_Jonas_2136,6,Data_4,

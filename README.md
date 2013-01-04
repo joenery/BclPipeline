@@ -1,5 +1,5 @@
 # BCL Gal-E Salk Pipeline
-Joe Feeney:jfeeney@salk.edu
+Joe Feeney: jfeeney at salk edu
 License: Buy a Joe Feeney a beer if this script doesn't suck.
 
 # Overview

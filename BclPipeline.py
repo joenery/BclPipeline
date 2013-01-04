@@ -285,7 +285,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples):
             if database == "":
                 database = project
 
-            tablename = sample_name + "_" + os.path.basename(run) + "_"
+            tablename = sample_name + "_" + os.path.basename(run)
 
             # Create Annoj subfolder:
             folder_command = "mkdir %s/annoj" % (sample_folder)
@@ -400,9 +400,10 @@ def convert_and_upload_sam2_annoj(run,annoj_samples):
             print("Finished Uploading %s:%s to host:%s database:%s table:%s" % (project,sample,host,database,tablename))
 
             # ---------------------- Creating Fetcher Information ------------------- #
-            with open(tablename[:-1] + ".php","w") as fetcher:
+            with open(tablename + ".php","w") as fetcher:
                 fetcher.write("<?php\n")
-                fetcher.write("$table = '%s.reads_%s';\n" % (database,tablename) )
+                fetcher.write("$append_assembly = true;\n")
+                fetcher.write("$table = '%s.reads_%s_';\n" % (database,tablename) )
                 fetcher.write("$title = '%s';\n" % (tablename))
                 fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
                 fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
@@ -410,13 +411,13 @@ def convert_and_upload_sam2_annoj(run,annoj_samples):
                 fetcher.write("?>\n")
 
             # --------------------- Create Track Information ------------------------ #
-            with open(tablename[:-1] + ".trackDefinition","w") as track_def:
+            with open(tablename + ".trackDefinition","w") as track_def:
                 track_def.write("{\n")
-                track_def.write(" id: '%s',\n"   % tablename[:-1])
-                track_def.write(" name: '%s',\n" % tablename[:-1] )
+                track_def.write(" id: '%s',\n"   % tablename)
+                track_def.write(" name: '%s',\n" % tablename)
                 track_def.write(" type: 'ReadsTrack',\n")
                 track_def.write(" path: 'NA',\n")
-                track_def.write(" data: '<INSERT RELATIVE PATH TO FETCHER>/%s',\n" % (tablename[:-1] + ".php"))
+                track_def.write(" data: '<INSERT RELATIVE PATH TO FETCHER>/%s',\n" % (tablename + ".php"))
                 track_def.write(" height: '90', \n")
                 track_def.write(" scale: 0.03\n")
                 track_def.write("},\n")

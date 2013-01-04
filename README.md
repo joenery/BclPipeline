@@ -5,8 +5,8 @@ License: Buy a Joe Feeney a beer if this script doesn't suck.
 # Overview
 Bcl Pipeline autmates several steps in the bcl process by making a few key assumptions.
 
-1) There is a sample sheet that contains all the information needed top run Bcl in <run folder>/Data/Intensities/BaseCalls/
-2) Bcl writes its output to <run folder>/Unaligned/ in which the Projects and their samples are stored.
+1. There is a sample sheet that contains all the information needed top run Bcl in <run folder>/Data/Intensities/BaseCalls/
+2. Bcl writes its output to <run folder>/Unaligned/ in which the Projects and their samples are stored.
 
 # What It Doesn't Do and Known Issues
 - Currently, BCLPipeline does not handle paired-end reads for Bowtie2 and MySQL uploading. As such paired-end reads should only have BCL analysis run on them

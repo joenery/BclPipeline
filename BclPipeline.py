@@ -30,7 +30,8 @@ class notification(object):
         self.password = "g3n0m3analysis"
         self.FROM     = "genomic.analysis.ecker@gmail.com"
 
-        self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu","ronan.omalley@gmail.com"]
+        # self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu","ronan.omalley@gmail.com"]
+        self.admin = ["jfeeneysd@gmail.com"]
 
     def send_message(self,TO,SUBJECT,TEXT):
         """
@@ -204,19 +205,19 @@ def watchRunFolder(run,sleep):
 
                 break
 
-def runBCL(run):
+def runBCL(run,sample_sheet,bcl_output_dir):
     """
     Function: Makes system calls to casava in the run/Data/intensities/BaseCalls folder. Once the Unaligned Folder has been created it moves to it
               and runs the make command
     """
 
-    output_folder = "Unaligned"
-
     # Change Current Working Dir to BaseCalls run BCL
     os.chdir(run + "/Data/Intensities/BaseCalls")
     print("Current working Dir is %s") % os.getcwd()
 
-    bcl_command = "/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl --output-dir ../../../%s" % (output_folder)
+    bcl_command = " ".join(["/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl","--output-dir","../../../" + bcl_output_dir,"--sample-sheet" + sample_sheet])
+
+    #bcl_command = "/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl --output-dir ../../../Unaligned"
 
     print("Finished Bcl Command")
 
@@ -434,21 +435,33 @@ if __name__=="__main__":
                                      The SampleSheet.csv located in the Run/Data/Intensities/BaseCalls folder will act as the configuration file.\
                                      See README.md for more information.")
 
-    parser.add_argument("-r","--run",help = "Absolute path to the run folder you would like to watch and run Bcl on.")
-    parser.add_argument("-nw","--no-watch",help="If the run has already completed and you would like to just run Bcl etc then turn this flag on. DEFAULT: off",\
+    mandatory = parser.add_argument_group("MANDATORY")
+    optional  = parser.add_argument_group("OPTIONAL")
+    advanced  = parser.add_argument_group("ADVANCED -> Use only if you're a Ninja or Jedi!")
+
+    mandatory.add_argument("-r","--run",help = "Absolute path to the run folder you would like to watch and run Bcl on.")
+
+    optional.add_argument("-nw","--no-watch",help="If the run has already completed and you would like to just run Bcl etc then turn this flag on. DEFAULT: off",\
                          action="store_true")
-    parser.add_argument("-p","--processors",help = "Number of processors to run if/when Bowtie2 is excecuted DEFAULT: 12.",default=12)
-    parser.add_argument("-n","--notifications",help="Turn notifications on. An email blast will be sent to the ADMIN and the OPERATORS when BCL has started and when\
+    optional.add_argument("-n","--notifications",help="Turn notifications on. An email blast will be sent to the ADMIN and the OPERATORS when BCL has started and when\
                                                      it is complete. DEFAULT: off",
-                                                     action="store_true")   
+                                                     action="store_true") 
+
+
+    advanced.add_argument("-p","--processors",help = "Number of processors to run if/when Bowtie2 is excecuted DEFAULT: 12.",default=12)
+    advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet")
+    advanced.add_argument("-o","--output-dir",help = "Name of Directory to create at the Top of Run folder provided. DEFAULT: Unaligned",default="Unaligned") 
 
     #---------------------------- Parse Command Line Options ---------------------------- #
     
     command_line_options = vars(parser.parse_args())
-    run = command_line_options["run"]
-    no_watch = command_line_options["no_watch"]
-    processors = command_line_options["processors"]
+
+    run           = command_line_options["run"]
+    no_watch      = command_line_options["no_watch"]
+    processors    = command_line_options["processors"]
     notifications = command_line_options["notifications"]
+    sample_sheet  = command_line_options["sample_sheet"]
+    bcl_output_dir = command_line_options["output_dir"]
 
     # --------------------------- Validate Inputs before Continuing ------------------------ #
     # Check the prerequisites for continuing:
@@ -527,7 +540,7 @@ if __name__=="__main__":
             n.bcl_start_blast(run,owners_and_samples)
 
         print("Starting BCL Analysis")
-        runBCL(run)
+        runBCL(run,sample_sheet,bcl_output_dir)
         print("Finished BCL Analysis")
 
         print("Running Bowtie Analysis")

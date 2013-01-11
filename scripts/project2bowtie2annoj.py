@@ -221,15 +221,15 @@ if __name__=="__main__":
         bowtie_command = " ".join([path_to_bowtie,bowtie_options,bowtie_indexes,",".join(fastqs),"1> bowtie2.out.sam","2> bowtie2.stats"])
         subprocess.call(bowtie_command,shell=True)
 
-        # Run local2mysql
-        create_annoj_folder = "mkdir annoj"
-        subprocess.call(create_annoj_folder,shell=True)
+        # # Run local2mysql
+        # create_annoj_folder = "mkdir annoj"
+        # subprocess.call(create_annoj_folder,shell=True)
 
-        with open("bowtie2.out.sam","r") as sam_file:
+        # with open("bowtie2.out.sam","r") as sam_file:
 
-            os.chdir(current_folder + "/annoj")
+        #     os.chdir(current_folder + "/annoj")
             
-            local2mysql(sam_file,host,database,tablename,mysql_user,mysql_password)
+        #     local2mysql(sam_file,host,database,tablename,mysql_user,mysql_password)
 
 
 

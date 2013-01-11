@@ -93,7 +93,7 @@ class notification(object):
         else:
             print("No one to BCL_Start_Blast")
 
-def parseSampleSheet(run):
+def parseSampleSheet(run,sample_sheet):
     """
     Function: Given a run path the function will check the /Data/Intensities/BaseCalls folder for a SampleSheet.csv
               then it will parse the file and return a dictionary such that { Project_Name:[(Sample_1,Options),(Sample_2,options)...] }
@@ -105,7 +105,7 @@ def parseSampleSheet(run):
     - projects_and_samples,bowtie_projects,annoj_projects -> A tuple containing the dictionaries
     """
 
-    with open(run + "/Data/Intensities/BaseCalls/SampleSheet.csv","r") as csv:
+    with open(run + "/Data/Intensities/BaseCalls/%s.csv" % sample_sheet,"r") as csv:
 
         projects_and_samples = {}
         bowtie_projects = {}
@@ -215,7 +215,7 @@ def runBCL(run,sample_sheet,bcl_output_dir):
     os.chdir(run + "/Data/Intensities/BaseCalls")
     print("Current working Dir is %s") % os.getcwd()
 
-    bcl_command = " ".join(["/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl","--output-dir","../../../" + bcl_output_dir,"--sample-sheet" + sample_sheet])
+    bcl_command = " ".join(["/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl","--output-dir","../../../" + bcl_output_dir,"--sample-sheet",sample_sheet + ".csv"])
 
     #bcl_command = "/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl --output-dir ../../../Unaligned"
 
@@ -224,7 +224,7 @@ def runBCL(run,sample_sheet,bcl_output_dir):
     subprocess.call(bcl_command,shell=True)
 
     # Change to Top level/Unaligned and run make
-    os.chdir(run + "/" + output_folder)
+    os.chdir(run + "/" + bcl_output_dir)
     print("Running Make Command")
     print("Current working directory is %s") % os.getcwd()
 
@@ -447,7 +447,6 @@ if __name__=="__main__":
                                                      it is complete. DEFAULT: off",
                                                      action="store_true") 
 
-
     advanced.add_argument("-p","--processors",help = "Number of processors to run if/when Bowtie2 is excecuted DEFAULT: 12.",default=12)
     advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet")
     advanced.add_argument("-o","--output-dir",help = "Name of Directory to create at the Top of Run folder provided. DEFAULT: Unaligned",default="Unaligned") 
@@ -462,6 +461,21 @@ if __name__=="__main__":
     notifications = command_line_options["notifications"]
     sample_sheet  = command_line_options["sample_sheet"]
     bcl_output_dir = command_line_options["output_dir"]
+
+    # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
+
+    # Make Sure Run is formatted correctly
+    if run[-1] == "/":
+        run = run[:-1]
+
+    # Turn on Notifications
+    if notifications:
+        n = notification()
+
+    # Make sure there isn't a .csv at the end of file
+    if os.path.splitext(sample_sheet)[1] != "":
+        sample_sheet = os.path.splitext(sample_sheet)[0]
+
 
     # --------------------------- Validate Inputs before Continuing ------------------------ #
     # Check the prerequisites for continuing:
@@ -480,24 +494,13 @@ if __name__=="__main__":
         print("\nIt looks like RTAcomplete.txt doesn't exist in %s.\n" % (run))
         sys.exit(1)
 
-    if not os.path.isfile(run + "/Data/Intensities/BaseCalls/SampleSheet.csv"):
-        print("\nIt looks like SampleSheet.csv doesn't exist in %s. Can you create it?\n" % (run + "/Data/Intensities/BaseCalls/"))
+    if not os.path.isfile(run + "/Data/Intensities/BaseCalls/" + sample_sheet + ".csv"):
+        print("\nIt looks like %s doesn't exist in %s Can you create it?\n" % (sample_sheet,run + "/Data/Intensities/BaseCalls/"))
         sys.exit(1)
-
-    # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
-
-    # Make Sure Run is formatted correctly
-    if run[-1] == "/":
-        run = run[:-1]
-
-    # Turn on Notifications
-
-    if notifications:
-        n = notification()
 
     # -------------------------- Parse SampleSheet.csv  ------------------------------- #
     
-    project_dicts = parseSampleSheet(run)
+    project_dicts = parseSampleSheet(run,sample_sheet)
 
     projects_and_samples = project_dicts[0]
     bowtie_samples       = project_dicts[1]

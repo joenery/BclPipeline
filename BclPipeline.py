@@ -58,7 +58,7 @@ class notification(object):
         except Exception,err:
             sys.stderr.write('ERROR: %s -> Not Sending Message. Script Continues\n' % str(err))
 
-    def bcl_complete_blast(self,run,owners_and_samples):
+    def bcl_complete_blast(self,run,owners_and_samples,bcl_output_dir):
         """
         ARGS:
         owners_and_samples: A dicitionary where Keys are mapped to email address and a list of samples are the values. This is created in Sample_sheet parser
@@ -73,7 +73,7 @@ class notification(object):
                 project = tup[0]
                 sample  = tup[1]
 
-                samples.append(run + "/Unaligned/Project_" + project + "/Sample_" + sample)
+                samples.append(run + "/" + bcl_output_dir + "/Project_" + project + "/Sample_" + sample)
 
             text = " Your files are located at: \n\n%s\n" % "\n".join(samples)
 
@@ -232,7 +232,7 @@ def runBCL(run,sample_sheet,bcl_output_dir):
 
     subprocess.call(make_command,shell=True)
 
-def bowtieProjects(run,projects_and_samples,processors):
+def bowtieProjects(run,projects_and_samples,processors,bcl_output_dir):
     """
     Function: Given a dictionary that contains Projects as keys and a list of samples as values this function will go into every directory
 
@@ -245,7 +245,7 @@ def bowtieProjects(run,projects_and_samples,processors):
         samples = projects_and_samples[project]
 
         # Create a list of the full paths to the Sample folders:
-        sample_folders = [run + "/Unaligned/Project_" + project + "/Sample_" + name[0] for name in samples]
+        sample_folders = [run + "/" + bcl_output_dir + "/Project_" + project + "/Sample_" + name[0] for name in samples]
 
         for s in sample_folders:
 
@@ -265,7 +265,7 @@ def bowtieProjects(run,projects_and_samples,processors):
 
             print("Finished gunzipping and Bowtie-ing %s:%s" % (project,s))
 
-def convert_and_upload_sam2_annoj(run,annoj_samples):
+def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
     """
     Function: given a dictionary Annoj_samples that must be a subset (or the entire set) of bowtie_samples. Each one of these samples will be sorted and loaded
     to a MySQL Database of the user's choosing. The SampleSheet.csv takes care of this.
@@ -275,7 +275,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples):
 
         for sample in annoj_samples[project]:
 
-            sample_folder = run + "/Unaligned/Project_" + project + "/Sample_" + sample[0]
+            sample_folder = run + "/" + bcl_output_dir + "/Project_" + project + "/Sample_" + sample[0]
 
             # Parse the information from the Sample
             sample_name = sample[0]
@@ -462,21 +462,6 @@ if __name__=="__main__":
     sample_sheet  = command_line_options["sample_sheet"]
     bcl_output_dir = command_line_options["output_dir"]
 
-    # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
-
-    # Make Sure Run is formatted correctly
-    if run[-1] == "/":
-        run = run[:-1]
-
-    # Turn on Notifications
-    if notifications:
-        n = notification()
-
-    # Make sure there isn't a .csv at the end of file
-    if os.path.splitext(sample_sheet)[1] != "":
-        sample_sheet = os.path.splitext(sample_sheet)[0]
-
-
     # --------------------------- Validate Inputs before Continuing ------------------------ #
     # Check the prerequisites for continuing:
     # 1) RTAcomplete.txt exists in the top level
@@ -493,6 +478,20 @@ if __name__=="__main__":
     if not os.path.isfile(run + "/RTAComplete.txt"):
         print("\nIt looks like RTAcomplete.txt doesn't exist in %s.\n" % (run))
         sys.exit(1)
+
+    # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
+
+    # Make Sure Run is formatted correctly
+    if run[-1] == "/":
+        run = run[:-1]
+
+    # Turn on Notifications
+    if notifications:
+        n = notification()
+
+    # Make sure there isn't a .csv at the end of file
+    if os.path.splitext(sample_sheet)[1] != "":
+        sample_sheet = os.path.splitext(sample_sheet)[0]
 
     if not os.path.isfile(run + "/Data/Intensities/BaseCalls/" + sample_sheet + ".csv"):
         print("\nIt looks like %s doesn't exist in %s Can you create it?\n" % (sample_sheet,run + "/Data/Intensities/BaseCalls/"))
@@ -547,15 +546,15 @@ if __name__=="__main__":
         print("Finished BCL Analysis")
 
         print("Running Bowtie Analysis")
-        bowtieProjects(run,bowtie_samples,processors)
+        bowtieProjects(run,bowtie_samples,processors,bcl_output_dir)
 
         print("Running Annoj prep and upload")
-        convert_and_upload_sam2_annoj(run,annoj_samples)
+        convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir)
 
         # Alert the Masses!
         if notifications:
             n.admin_message("Bcl Finished for %s" % (run),"")
-            n.bcl_complete_blast(run,owners_and_samples)
+            n.bcl_complete_blast(run,owners_and_samples,bcl_output_dir)
 
         # Clean up
         print("Finished BCL Pipeline :-]")

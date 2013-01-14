@@ -249,15 +249,20 @@ def bowtieProjects(run,projects_and_samples,processors,bcl_output_dir):
 
         for s in sample_folders:
 
+            # Get a list of all files that contain "FASTQ"
+            fastq_files = [x for x in os.listdir(s) if "fastq" in x]
+
+            # Don't want to wast time on folders that don't have anythinf in them
+            if len(fastq_files) < 1:
+                print("No Files to Bowtie or Unzip. Skipping " + s)
+                continue
+
             # Change working Directory to sample Folder
             os.chdir(s)
 
             # Gunzip everything .gz
             gunzip_command = "gunzip *.gz"
             subprocess.call(gunzip_command,shell=True)
-
-            # Get a list of all files that contain "FASTQ"
-            fastq_files = [x for x in os.listdir(s) if "fastq" in x]
 
             # Bowtie
             bowtie_command = "bowtie2 --local -p %s /data/home/seq/bin/bowtie2/INDEXES/tair10 %s 1> bowtie2.out.sam 2> bowtie2.stats" % (processors,",".join(fastq_files))
@@ -276,6 +281,14 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
         for sample in annoj_samples[project]:
 
             sample_folder = run + "/" + bcl_output_dir + "/Project_" + project + "/Sample_" + sample[0]
+
+            # Same as Bowtie
+            fastq_files = [x for x in os.listdir(s) if "fastq" in x]
+
+            if len(fastq_files) < 1:
+                print("No Files to upload to MySQL. Skipping " + sample)
+                continue
+
 
             # Parse the information from the Sample
             sample_name = sample[0]

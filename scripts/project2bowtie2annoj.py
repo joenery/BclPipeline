@@ -217,6 +217,10 @@ if __name__=="__main__":
         # Gather up all fastq's
         fastqs = [x for x in os.listdir(current_folder) if "fastq" in x]
 
+        if len(fastqs) < 1:
+            print("Skipping %s since there are no fastqs" % folder)
+            continue
+
         # Call Bowtie2
         bowtie_command = " ".join([path_to_bowtie,bowtie_options,bowtie_indexes,",".join(fastqs),"1> bowtie2.out.sam","2> bowtie2.stats"])
         subprocess.call(bowtie_command,shell=True)

@@ -15,7 +15,6 @@ import MySQLdb as mdb
 
 # NOTE: Sequences that are upload to annoj should only be what the snip string specifies not the entire sequence
 # NOTE: Bowtie 2 should auto-magically run seperate analysis if the reads are paired-end. COS IT DON"T!!
-# NOTE: Log the command used in to the log file
 
 # Classes and Functions
 class MyParser(argparse.ArgumentParser):
@@ -31,7 +30,7 @@ class notification(object):
         self.password = "g3n0m3analysis"
         self.FROM     = "genomic.analysis.ecker@gmail.com"
 
-        # self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu"]
+        # self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu","ronan.omalley@gmail.com"]
         self.admin = ["jfeeneysd@gmail.com"]
 
     def send_message(self,TO,SUBJECT,TEXT):
@@ -274,6 +273,44 @@ def bowtieProjects(run,projects_and_samples,processors,bcl_output_dir):
 
             print("Finished gunzipping and Bowtie-ing %s:%s" % (project,s))
 
+def getAlignedSequence(raw_sequence,match_string):
+    """
+    Parses a CIGAR string and return a list of aligned sequences
+    """
+
+    num = []
+    matches_and_snips = []
+
+    for char in match_string:
+
+        if char not in ["S","M","s","m","N","n","D","d","I","i"]:
+            num.append(char)
+        else:
+            length = int("".join(num))
+
+            matches_and_snips.append((length,char))
+
+            num = []
+
+    # Using that information construct the list of sequences.
+    # note: Sam starts on 1 and python starts on 0
+
+    start = 0
+
+    sequences = []
+
+    for m in matches_and_snips:
+
+        length_of_match = m[0] 
+        type_of_match   = m[1]
+
+        if type_of_match == "M":
+            sequences.append(raw_sequence[start:start + length_of_match])
+
+        start += length_of_match
+
+    return sequences
+
 def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
     """
     Function: given a dictionary Annoj_samples that must be a subset (or the entire set) of bowtie_samples. Each one of these samples will be sorted and loaded
@@ -332,7 +369,11 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                     read_start  = row[3]
                     snip_string = row[5]
                     direction   = row[1]
-                    sequence    = row[9]
+                    raw_sequence    = row[9]
+
+                    # Assume there is only one or at most one significant sequence in the read
+                    parsed_sequence = getAlignedSequence(raw_sequence,snip_string)
+                    sequence        = parsed_sequence[0]
                     
                     # Skip unmapped reads 
                     if chromosome in ["*","chloroplast","mitochondira","ChrC","ChrM"] :

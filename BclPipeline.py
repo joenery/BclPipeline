@@ -31,7 +31,7 @@ class notification(object):
         self.password = "g3n0m3analysis"
         self.FROM     = "genomic.analysis.ecker@gmail.com"
 
-        # self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu","ronan.omalley@gmail.com"]
+        # self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu"]
         self.admin = ["jfeeneysd@gmail.com"]
 
     def send_message(self,TO,SUBJECT,TEXT):
@@ -290,7 +290,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
             fastq_files = [x for x in os.listdir(sample_folder) if "fastq" in x]
 
             if len(fastq_files) < 1:
-                print("No Files to upload to MySQL. Skipping " + sample)
+                print("No Files to upload to MySQL. Skipping " + sample_folder)
                 continue
 
             # Parse the information from the Sample
@@ -525,6 +525,9 @@ if __name__=="__main__":
     # ------------------------- Pre-Start Check    -------------------------------------#
     # Create Run Log
     run_log = open(run + "/Bcl_log.txt","a")
+
+    # Write Entire Command to log
+    run_log.write(" ".join(sys.argv[:]) + "\n")
 
     while True:
 

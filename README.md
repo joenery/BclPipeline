@@ -10,7 +10,6 @@ Bcl Pipeline autmates several steps in the bcl process by making a few key assum
 
 # What It Doesn't Do and Known Issues
 - Currently, BCLPipeline does not handle paired-end reads for Bowtie2 and MySQL uploading. As such paired-end reads should only have BCL analysis run on them
-- MySQL upload from Bowtie2 sam files include the entire read sequence and not what actually aligned. However, the actual length of the read is pulled out with regular expressions and is accurate.
 - Script will not make you "successful with the ladies". Only working on your dance moves can do that.
 
 ## BCL Mandatory "option"

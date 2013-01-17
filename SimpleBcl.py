@@ -177,34 +177,6 @@ def parseSampleSheet(run,sample_sheet):
 
     return (projects_and_samples,bowtie_projects,annoj_projects,owners_and_samples)
 
-def watchRunFolder(run,sleep):
-    """
-    Args:
-    run -> A folder that contains an RTAcomplete.txt
-
-    Method: The file will be polled every hour. If the first line is not the same as the last time it checked it will kick out and run the rest
-            of the BCL pipeline
-    """
-
-    RTAcomplete = run +"/RTAComplete.txt"
-
-    # Initial open of RTAcomplete.txt
-    with open(RTAcomplete,"r") as input_file:
-        prev_line = input_file.readline().strip()
-
-    # Loop
-    while True:
-        time.sleep(sleep)
-
-        with open(RTAcomplete,"r") as input_file:
-            current_line = input_file.readline().strip()
-
-            if current_line != prev_line:
-                print("Checked file at %s and it has been changed." % time.strftime("%y-%m-%d %H:%M:%S",time.localtime()))
-                print("Moving on to Bcl Analysis")
-
-                break
-
 def runBCL(run,sample_sheet,bcl_output_dir):
     """
     Function: Makes system calls to casava in the run/Data/intensities/BaseCalls folder. Once the Unaligned Folder has been created it moves to it
@@ -485,26 +457,14 @@ if __name__=="__main__":
     
     # --------------------------- Configure Arg Parser ----------------------------- #
 
-    parser = MyParser(description = "Bcl Pipeline takes in an absolute path to the Top Level of an Illumina Run and watches the RTAComplete.txt\
-                                     file for changes every hour. When the file is updated to reflect the finish time the script runs BCL.\
-                                     Options for running Bowtie and and MySQL Upload are handled in the SampleSheet.csv file\
+    parser = MyParser(description = "SimpleBcl is run in the Data/Intensities/BaseCalls folder of the RUN you would like to have BCL performed on.\
                                      \
                                      The SampleSheet.csv located in the Run/Data/Intensities/BaseCalls folder will act as the configuration file.\
+                                     Also, ../../../Unaligned will be created and that's where all the Projects and Samples will be.\
                                      See README.md for more information.")
 
-    mandatory = parser.add_argument_group("MANDATORY")
-    optional  = parser.add_argument_group("OPTIONAL")
     advanced  = parser.add_argument_group("ADVANCED -> Use only if you're a Ninja or Jedi!")
 
-    mandatory.add_argument("-r","--run",help = "Absolute path to the run folder you would like to watch and run Bcl on.")
-
-    optional.add_argument("-nw","--no-watch",help="If the run has already completed and you would like to just run Bcl etc then turn this flag on. DEFAULT: off",\
-                         action="store_true")
-    optional.add_argument("-n","--notifications",help="Turn notifications on. An email blast will be sent to the ADMIN and the OPERATORS when BCL has started and when\
-                                                     it is complete. DEFAULT: off",
-                                                     action="store_true") 
-
-    advanced.add_argument("-p","--processors",help = "Number of processors to run if/when Bowtie2 is excecuted DEFAULT: 12.",default=12)
     advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet")
     advanced.add_argument("-o","--output-dir",help = "Name of Directory to create at the Top of Run folder provided. DEFAULT: Unaligned",default="Unaligned") 
 
@@ -512,46 +472,23 @@ if __name__=="__main__":
     
     command_line_options = vars(parser.parse_args())
 
-    run           = command_line_options["run"]
-    no_watch      = command_line_options["no_watch"]
-    processors    = command_line_options["processors"]
-    notifications = command_line_options["notifications"]
     sample_sheet  = command_line_options["sample_sheet"]
     bcl_output_dir = command_line_options["output_dir"]
 
-    # --------------------------- Validate Inputs before Continuing ------------------------ #
-    # Check the prerequisites for continuing:
-    # 1) RTAcomplete.txt exists in the top level
-    # 2) There is a sample sheet (SampleSheet.csv) in Run/Data/Intensities/Basecalls/
 
-    if not run:
-        parser.print_help()
-        sys.exit(1)
+    # ---------------------------- Where is the run? ------------------------------------- #
 
-    if not os.path.exists(run):
-        print("\nIt looks like that Path: %s doesn't exist. Try again.\n" % (run))
-        sys.exit(1)
+    # This script is going to be run in the Data/Intensities/BaseCalls folder
+    run = os.path.abspath("../../../")
 
-    if not os.path.isfile(run + "/RTAComplete.txt"):
-        print("\nIt looks like RTAcomplete.txt doesn't exist in %s.\n" % (run))
-        sys.exit(1)
-
-    # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
-
-    # Make Sure Run is formatted correctly
-    if run[-1] == "/":
-        run = run[:-1]
-
-    # Turn on Notifications
-    if notifications:
-        n = notification()
+    # ---------------------------- Validate Everything! ----------------------------------- #
 
     # Make sure there isn't a .csv at the end of file
     if os.path.splitext(sample_sheet)[1] != "":
         sample_sheet = os.path.splitext(sample_sheet)[0]
 
     if not os.path.isfile(run + "/Data/Intensities/BaseCalls/" + sample_sheet + ".csv"):
-        print("\nIt looks like %s doesn't exist in %s Can you create it?\n" % (sample_sheet,run + "/Data/Intensities/BaseCalls/"))
+        print("\nIt looks like %s doesn't exist in %s Can you create it or make sure you are in the right directory.\n" % (sample_sheet,run + "/Data/Intensities/BaseCalls/"))
         sys.exit(1)
 
     # -------------------------- Parse SampleSheet.csv  ------------------------------- #
@@ -572,34 +509,25 @@ if __name__=="__main__":
 
     while True:
 
-        answer = raw_input("\nDo you want to launch the Bcl Pipeline Daemon? (y,n): ")
+        answer = raw_input("\nDo you want to run the Bcl Pipeline (y or n): ")
 
         if answer == "y":
             break
 
         elif answer == "n":
-            print("Script Aborted. Daemon NOT running.")
+            print("Script Aborted. :-(")
             sys.exit(1)
 
         else:
             print " (y/n) only please! "
 
     #  ---------------------------- Start of Daemon ------------------------------- #
-    print("\nStarting the Daemon. Bye!\n")
+    print("\nRunning the BCL Pipeline in the Background. Bye!\n")
 
     with daemon.DaemonContext(stdout=run_log,stderr=run_log):
 
-        print("Daemon is now running")
-
-        if notifications:
-            n.admin_message("Daemon running for %s" % (run),"")
-
-        if no_watch == False:
-                watchRunFolder(run,600)
-
-        if notifications:
-            n.admin_message("Bcl Started for %s" % (run),"")
-            n.bcl_start_blast(run,owners_and_samples)
+        n.admin_message("Bcl Started for %s" % (run),"")
+        n.bcl_start_blast(run,owners_and_samples)
 
         print("Starting BCL Analysis")
         runBCL(run,sample_sheet,bcl_output_dir)
@@ -612,9 +540,8 @@ if __name__=="__main__":
         convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir)
 
         # Alert the Masses!
-        if notifications:
-            n.admin_message("Bcl Finished for %s" % (run),"")
-            n.bcl_complete_blast(run,owners_and_samples,bcl_output_dir)
+        n.admin_message("Bcl Finished for %s" % (run),"")
+        n.bcl_complete_blast(run,owners_and_samples,bcl_output_dir)
 
         # Clean up
         print("Finished BCL Pipeline :-]")

@@ -43,7 +43,7 @@ For the first row of samples you can see column "Descriptor" has the following i
 
 	bt;thumper-e2;bcl_test
 
-The first column signifies that bt should be run. The second indicates that MySQL upload should be performed and that the MySQL Host is thumper-e2. The last column is optional if the MySQL Host is present. It signifies which Database the data should be uploaded to. If it is not present it is assumed that the Project Name is the correct database. Additionally, if a Database is not present on a host it will be created.
+The first column signifies that bt should be run. The second indicates that MySQL upload should be performed and that the MySQL Host is thumper-e2. The last column is optional if the MySQL Host is present. It signifies which Database the data should be uploaded to. If it is not present it is assumed that the Project column is the correct database name. Additionally, if a Database is not present on a host it will be created.
 
 More Examples:
 

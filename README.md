@@ -47,10 +47,10 @@ The first column signifies that bt should be run. The second indicates that MySQ
 
 More Examples:
 
-bt;;             -> Run bowtie but don't upload to a MySQL database
-bt;thumper-e3;   -> Run bowtie and Upload to MySQL use Project as database name and sample name + Illumina Run ID as tablename
-;;               -> Only perform BCL analysis on sample.
-                 -> :-} You can also leave column Descriptor blank and the script will just assume you only want Bcl.
+- bt;;             -> Run bowtie but don't upload to a MySQL database
+- bt;thumper-e3;   -> Run bowtie and Upload to MySQL use Project as database name and sample name + Illumina Run ID as tablename
+- ;;               -> Only perform BCL analysis on sample.
+-                  -> :-} You can also leave column Descriptor blank and the script will just assume you only want Bcl.
 
 Here's some Bad examples:
 

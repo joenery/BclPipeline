@@ -437,7 +437,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                 fetcher.write("$title = '%s';\n" % (tablename))
                 fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
                 fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
-                fetcher.write("require_once '<PUT RELATIVE PATH TO HTML PAGE>/includes/common_reads.php';\n")
+                fetcher.write("require_once '<PUT RELATIVE PATH TO INCLUDES>/includes/common_reads.php';\n")
                 fetcher.write("?>\n")
 
             # --------------------- Create Track Information ------------------------ #

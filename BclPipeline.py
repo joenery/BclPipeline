@@ -108,10 +108,12 @@ def parseSampleSheet(run,sample_sheet):
 
     with open(run + "/Data/Intensities/BaseCalls/%s.csv" % sample_sheet,"r") as csv:
 
-        projects_and_samples = {}
-        bowtie_projects = {}
-        annoj_projects = {}
-        owners_and_samples = {}
+        # Note: If you query against a default dict and don't place anything in there
+        # A key will Still be created!
+        projects_and_samples = defaultdict(list)
+        bowtie_projects      = defaultdict(list)
+        annoj_projects       = defaultdict(list)
+        owners_and_samples   = defaultdict(list)
 
         for i,line in enumerate(csv):
 
@@ -120,29 +122,21 @@ def parseSampleSheet(run,sample_sheet):
 
             row = line.strip().split(",")
 
-            options        = row[0]
             sample_name    = row[2]
+            options        = row[5]
             operator_email = row[8]
             project        = row[9]
 
-            # if Project is not already in dictionary add it.
-            if project not in projects_and_samples.keys():
-                projects_and_samples[project] = []
-
             # Add the information to the Project-> Sample List
-            if (sample_name,options) not in projects_and_samples[project]:
+            if sample_name not in projects_and_samples[project]:
                 projects_and_samples[project].append(sample_name)
 
             # Begin Parsing the Bowtie and Annoj Stuff
-            options = line.strip().split(",")[5]
-
             if options != "" and options != line.strip() and filter(None,options.split(";")) != []:
-
                 row = options.split(";")
                 genome = row[0]
                 annoj_thumper = row[1]
                 annoj_database = row[2]
-
 
                 # Check Constraints
                 if genome == "" and (annoj_thumper != "" or annoj_database != ""):
@@ -150,33 +144,24 @@ def parseSampleSheet(run,sample_sheet):
                     continue
 
                 if genome != "" and annoj_thumper == "" and annoj_database !="":
-                    print("%s %s options cannot be parsed. Bowtie selected, and MySQL table specified but no MySQL Host specified" % (project,sample_name))
+                    print("%s %s options cannot be parsed. Bowtie selected and MySQL table specified but no MySQL Host specified" % (project,sample_name))
                     continue
 
                 # Populate the Project Dictionaries
                 # Bowtie
-                if project not in bowtie_projects and genome != "":
-                    bowtie_projects[project] = []
-
-                if (sample_name,genome) not in bowtie_projects[project] and genome !="":
+                if genome !="" and (sample_name,genome) not in bowtie_projects[project]:
                     bowtie_projects[project].append((sample_name,genome))
 
                 # Annoj
-                if project not in annoj_projects and annoj_thumper != "":
-                    annoj_projects[project] = []
-
-                if (sample_name,annoj_thumper,annoj_database) not in annoj_projects[project] and annoj_thumper != "":
+                if annoj_thumper != "" and (sample_name,annoj_thumper,annoj_database) not in annoj_projects[project]:
                     annoj_projects[project].append((sample_name,annoj_thumper,annoj_database))
 
             # Get the operator_emails and samples all together
             if operator_email != "":
-                if operator_email not in owners_and_samples.keys():
-                    owners_and_samples[operator_email] = []
-
                 if (project,sample_name) not in owners_and_samples[operator_email]:
                     owners_and_samples[operator_email].append((project,sample_name))
 
-    return (projects_and_samples,bowtie_projects,annoj_projects,owners_and_samples)
+    return {"projects_and_samples":projects_and_samples, "bowtie_projects":bowtie_projects, "annoj_projects":annoj_projects, "owners_and_samples":owners_and_samples}
 
 def watchRunFolder(run,sleep):
     """
@@ -191,13 +176,13 @@ def watchRunFolder(run,sleep):
     iteration = 0
 
     while True:
-        
+
         time.sleep(sleep)
 
         if not os.path.isfile(RTAcomplete):
             print("Real Time Analysis has not begun yet.")
             continue
-
+        
         else:
             with open(RTAcomplete,"r") as input_file:
                 current_line = input_file.readline().strip()
@@ -223,8 +208,6 @@ def runBCL(run,sample_sheet,bcl_output_dir):
     print("Current working Dir is %s") % os.getcwd()
 
     bcl_command = " ".join(["/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl","--output-dir","../../../" + bcl_output_dir,"--sample-sheet",sample_sheet + ".csv"])
-
-    #bcl_command = "/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl --output-dir ../../../Unaligned"
 
     print("Finished Bcl Command")
 
@@ -539,10 +522,6 @@ if __name__=="__main__":
         print("\nIt looks like that Path: %s doesn't exist. Try again.\n" % (run))
         sys.exit(1)
 
-    # if not os.path.isfile(run + "/RTAComplete.txt"):
-    #     print("\nIt looks like RTAcomplete.txt doesn't exist in %s.\n" % (run))
-    #     sys.exit(1)
-
     # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
 
     # Make Sure Run is formatted correctly
@@ -557,6 +536,7 @@ if __name__=="__main__":
     if os.path.splitext(sample_sheet)[1] != "":
         sample_sheet = os.path.splitext(sample_sheet)[0]
 
+    # Check to make sure that the SampleSheet exists
     if not os.path.isfile(run + "/Data/Intensities/BaseCalls/" + sample_sheet + ".csv"):
         print("\nIt looks like %s doesn't exist in %s Can you create it?\n" % (sample_sheet,run + "/Data/Intensities/BaseCalls/"))
         sys.exit(1)
@@ -565,10 +545,10 @@ if __name__=="__main__":
     
     project_dicts = parseSampleSheet(run,sample_sheet)
 
-    projects_and_samples = project_dicts[0]
-    bowtie_samples       = project_dicts[1]
-    annoj_samples        = project_dicts[2]
-    owners_and_samples   = project_dicts[3]
+    projects_and_samples = project_dicts["projects_and_samples"]
+    bowtie_samples       = project_dicts["bowtie_projects"]
+    annoj_samples        = project_dicts["annoj_projects"]
+    owners_and_samples   = project_dicts["owners_and_samples"]
 
     # ------------------------- Pre-Start Check    -------------------------------------#
     # Create Run Log

@@ -35,9 +35,9 @@ The sixth column, "Descriptor", is used as the column where this configuration s
 
 Example Sample Sheet:
 
-D,Lane,Sample,Sample_Ref,Index,Descriptor,Control_lane,Recipe,Operator,Project
-,8,X,10,TAGCTT,bt;thumper-e2;bcl_test,,,b@mail.com,Bennett
-,8,Z,12,CTTGTA,,,,b@mail.com,Bennett
+- D,Lane,Sample,Sample_Ref,Index,Descriptor,Control_lane,Recipe,Operator,Project
+- ,8,X,10,TAGCTT,bt;thumper-e2;bcl_test,,,b@mail.com,Bennett
+- ,8,Z,12,CTTGTA,,,,b@mail.com,Bennett
 
 For the first row of samples you can see column "Descriptor" has the following information:
 

@@ -8,6 +8,7 @@ import re
 from warnings import filterwarnings
 import time
 import smtplib
+from collections import defaultdict
 
 # Non-Standard Python Modules
 import daemon
@@ -149,7 +150,7 @@ def parseSampleSheet(run,sample_sheet):
                     continue
 
                 if genome != "" and annoj_thumper == "" and annoj_database !="":
-                    print("%s %s options cannot be parsed. Bowtie selected, and MySQL table specified but now MySQL Host specified" % (project,sample_name))
+                    print("%s %s options cannot be parsed. Bowtie selected, and MySQL table specified but no MySQL Host specified" % (project,sample_name))
                     continue
 
                 # Populate the Project Dictionaries
@@ -187,23 +188,29 @@ def watchRunFolder(run,sleep):
     """
 
     RTAcomplete = run +"/RTAComplete.txt"
+    iteration = 0
 
-    # Initial open of RTAcomplete.txt
-    with open(RTAcomplete,"r") as input_file:
-        prev_line = input_file.readline().strip()
-
-    # Loop
     while True:
+        
         time.sleep(sleep)
 
-        with open(RTAcomplete,"r") as input_file:
-            current_line = input_file.readline().strip()
+        if not os.path.isfile(RTAcomplete):
+            print("Real Time Analysis has not begun yet.")
+            continue
 
-            if current_line != prev_line:
-                print("Checked file at %s and it has been changed." % time.strftime("%y-%m-%d %H:%M:%S",time.localtime()))
-                print("Moving on to Bcl Analysis")
+        else:
+            with open(RTAcomplete,"r") as input_file:
+                current_line = input_file.readline().strip()
 
-                break
+                if iteration == 0:
+                    prev_line == current_line
+                    iteration +=1
+
+                if current_line != prev_line:
+                    print("Checked file at %s and it has been changed." % time.strftime("%y-%m-%d %H:%M:%S",time.localtime()))
+                    print("Moving on to Bcl Analysis")
+
+                    break
 
 def runBCL(run,sample_sheet,bcl_output_dir):
     """
@@ -335,7 +342,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
             host        = sample[1]
             database    = sample[2]
 
-            # If no database is given assume that
+            # If no database is given assume that the Project name is the Database
             if database == "":
                 database = project
 
@@ -465,7 +472,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                 fetcher.write("$title = '%s';\n" % (tablename))
                 fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
                 fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
-                fetcher.write("require_once '<PUT RELATIVE PATH TO INCLUDES>/includes/common_reads.php';\n")
+                fetcher.write("require_once '<PUT RELATIVE PATH TO HTML PAGE>/includes/common_reads.php';\n")
                 fetcher.write("?>\n")
 
             # --------------------- Create Track Information ------------------------ #
@@ -532,9 +539,9 @@ if __name__=="__main__":
         print("\nIt looks like that Path: %s doesn't exist. Try again.\n" % (run))
         sys.exit(1)
 
-    if not os.path.isfile(run + "/RTAComplete.txt"):
-        print("\nIt looks like RTAcomplete.txt doesn't exist in %s.\n" % (run))
-        sys.exit(1)
+    # if not os.path.isfile(run + "/RTAComplete.txt"):
+    #     print("\nIt looks like RTAcomplete.txt doesn't exist in %s.\n" % (run))
+    #     sys.exit(1)
 
     # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
 
@@ -595,7 +602,7 @@ if __name__=="__main__":
             n.admin_message("Daemon running for %s" % (run),"")
 
         if no_watch == False:
-                watchRunFolder(run,600)
+                watchRunFolder(run,1800)
 
         if notifications:
             n.admin_message("Bcl Started for %s" % (run),"")

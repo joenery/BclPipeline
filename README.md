@@ -54,8 +54,8 @@ More Examples:
 
 Here's some Bad examples:
 
-;thumper-e3;     -> Since you didn't ask to bowtie the sample the script will complain. You can run BCL anyway but bowtie nor MySQL upload will be performed
-bt;;bcl_test     -> Now you're being just down right negligent! 
+- ;thumper-e3;     -> Since you didn't ask to bowtie the sample the script will complain. You can run BCL anyway but bowtie nor MySQL upload will be performed
+- bt;;bcl_test     -> Now you're being just down right mean! The script will throw an error when trying to parse this.
 
 ### Notifications
 Notifications are sent out by email to an ADMIN whose email is hardcoded into the script and to email address that are associated with samples. These associations are handled in the Sample Sheet column "Operator". The contact email for the sample should be placed here. 

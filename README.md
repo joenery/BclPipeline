@@ -15,7 +15,7 @@ Bcl Pipeline autmates several steps in the bcl process by making a few key assum
 ## BCL Mandatory "option"
 Bclpipeline.py -r <ABSOLUTE PATH TO RUN>
 
-The only option that needs to be suppled is the absolute path to the run folder you'd like to run Bcl on. By default it is assumed that the run has not completed. Bcl pipeline will watch the RTAComplete.txt file in the specified run folder for changes. When the finish time is appended BCL will run.
+The only option that needs to be supplied is the absolute path to the run folder you'd like to run Bcl on. By default it is assumed that the run has not completed. Bcl pipeline will watch the RTAComplete.txt file in the specified run folder for changes. When the finish time is appended BCL will run.
 
 ## Other Options
 -nw / --no-watch -> If the run has already finished and you'd like to run the script this flag will cause Bcl to run right away. DEFAULT: Off

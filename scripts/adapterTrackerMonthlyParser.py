@@ -21,7 +21,6 @@ def illegal_char_replace(string):
 
     return "".join(new_string)
 
-
 if __name__=="__main__":
     
     try:
@@ -30,15 +29,10 @@ if __name__=="__main__":
             sys.exit(1)
 
         csv_file = sys.argv[1]
-        month = sys.argv[2].lower()
-
-        if month not in ["january","february","march","april","may","june","july","august","september","october","november","december"]:
-            print("You typed in a weird month! Try again :-]")
-            sys.exit(1)
 
     except IndexError:
         print("")
-        print("adapterTrackerMonthlyParser.py <Monthly CSV Adapter Track file> <Month of File>")
+        print("adapterTrackerMonthlyParser.py <Monthly CSV Adapter Track file>")
         print("")
         
         sys.exit(1)
@@ -59,13 +53,6 @@ if __name__=="__main__":
                 continue
 
             runs[run_name].append(row)
-
-    # make the folder
-    command = "mkdir %s" % (month.capitalize())
-    subprocess.call(command,shell=True)
-
-    # Change cwd to that folder
-    os.chdir(os.getcwd() + "/"+ month.capitalize())
 
     # Loop through runs and Create Sample Sheets
 

@@ -47,7 +47,7 @@ if __name__=="__main__":
     runs = defaultdict(list)
 
     # Parse the runs in the file
-    with open(csv_file,"r") as csvfile:
+    with open(csv_file,"rU") as csvfile:
 
         adapter_month = csv.reader(csvfile)
 

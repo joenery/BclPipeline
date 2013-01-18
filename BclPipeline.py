@@ -31,8 +31,8 @@ class notification(object):
         self.password = "g3n0m3analysis"
         self.FROM     = "genomic.analysis.ecker@gmail.com"
 
-        # self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu","ronan.omalley@gmail.com"]
-        self.admin = ["jfeeneysd@gmail.com"]
+        self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu"]
+        # self.admin = ["jfeeneysd@gmail.com"]
 
     def send_message(self,TO,SUBJECT,TEXT):
         """

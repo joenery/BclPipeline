@@ -2,6 +2,10 @@
 Joe Feeney: jfeeney at salk edu
 License: Buy a Joe Feeney a beer if this script doesn't suck.
 
+# Uses
+- CASAVA 1.8.2
+- Python 2.7.1
+
 # Overview
 Bcl Pipeline autmates several steps in the bcl process by making a few key assumptions.
 

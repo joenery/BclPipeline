@@ -496,7 +496,7 @@ if __name__=="__main__":
 
     advanced.add_argument("-p","--processors",help = "Number of processors to run if/when Bowtie2 is excecuted DEFAULT: 12.",default=12)
     advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet")
-    advanced.add_argument("-o","--output-dir",help = "Name of Directory to create at the Top of Run folder provided. DEFAULT: Unaligned",default="Unaligned") 
+    advanced.add_argument("-o","--output-dir",help = "NAME of FOLDER to create at the top of the RUN folder provided. DEFAULT: Unaligned",default="Unaligned") 
 
     #---------------------------- Parse Command Line Options ---------------------------- #
     

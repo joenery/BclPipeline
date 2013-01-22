@@ -502,7 +502,7 @@ if __name__=="__main__":
 
     # ------------------------- Pre-Start Check    -------------------------------------#
     # Create Run Log
-    run_log = open(run + "/Bcl_log.txt","a")
+    run_log = open(run + "/Bcl_log.%s.Simple.txt" % bcl_output_dir,"a")
 
     # Write Entire Command to log
     run_log.write(" ".join(sys.argv[:]) + "\n")

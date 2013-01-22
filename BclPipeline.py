@@ -188,7 +188,7 @@ def watchRunFolder(run,sleep):
                 current_line = input_file.readline().strip()
 
                 if iteration == 0:
-                    prev_line == current_line
+                    prev_line = current_line
                     iteration +=1
 
                 if current_line != prev_line:
@@ -552,7 +552,7 @@ if __name__=="__main__":
 
     # ------------------------- Pre-Start Check    -------------------------------------#
     # Create Run Log
-    run_log = open(run + "/Bcl_log.txt","a")
+    run_log = open(run + "/Bcl_log.%s.txt" % bcl_output_dir,"a")
 
     # Write Entire Command to log
     run_log.write(" ".join(sys.argv[:]) + "\n")

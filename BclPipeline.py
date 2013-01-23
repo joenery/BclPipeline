@@ -192,7 +192,7 @@ def watchRunFolder(run,sleep):
                     iteration +=1
 
                 if current_line != prev_line:
-                    print("Checked file at %s and it has been changed." % time.strftime("%y-%m-%d %H:%M:%S",time.localtime()))
+                    print("Checked file at %s and it has been changed." % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
                     print("Moving on to Bcl Analysis")
 
                     break
@@ -497,6 +497,7 @@ if __name__=="__main__":
     advanced.add_argument("-p","--processors",help = "Number of processors to run if/when Bowtie2 is excecuted DEFAULT: 12.",default=12)
     advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet")
     advanced.add_argument("-o","--output-dir",help = "NAME of FOLDER to create at the top of the RUN folder provided. DEFAULT: Unaligned",default="Unaligned") 
+    advanced.add_argument("-a","--admin-only",help = "Send notifications to Admins only. Helpful for debugging. DEFAULT: off",action = "store_true")
 
     #---------------------------- Parse Command Line Options ---------------------------- #
     
@@ -508,6 +509,7 @@ if __name__=="__main__":
     notifications = command_line_options["notifications"]
     sample_sheet  = command_line_options["sample_sheet"]
     bcl_output_dir = command_line_options["output_dir"]
+    admin_only    = command_line_options["admin_only"]
 
     # --------------------------- Validate Inputs before Continuing ------------------------ #
     # Check the prerequisites for continuing:
@@ -552,10 +554,10 @@ if __name__=="__main__":
 
     # ------------------------- Pre-Start Check    -------------------------------------#
     # Create Run Log
-    run_log = open(run + "/Bcl_log.%s.txt" % bcl_output_dir,"a")
+    run_log = open(run + "/Bcl_log.%s.%s.txt" % (bcl_output_dir,time.strftime("%m-%d-%y--%H:%M",time.localtime())),"a")
 
     # Write Entire Command to log
-    run_log.write(" ".join(sys.argv[:]) + "\n")
+    run_log.write( time.strftime("%m-%d-%y %H:%M:%S",time.localtime()) + " --> " + " ".join(sys.argv[:]) + "\n")
 
     while True:
 
@@ -586,7 +588,9 @@ if __name__=="__main__":
 
         if notifications:
             n.admin_message("Bcl Started for %s" % (run),"")
-            n.bcl_start_blast(run,owners_and_samples)
+
+            if not admin_only:
+                n.bcl_start_blast(run,owners_and_samples)            
 
         print("Starting BCL Analysis")
         runBCL(run,sample_sheet,bcl_output_dir)
@@ -601,7 +605,9 @@ if __name__=="__main__":
         # Alert the Masses!
         if notifications:
             n.admin_message("Bcl Finished for %s" % (run),"")
-            n.bcl_complete_blast(run,owners_and_samples,bcl_output_dir)
+
+            if not admin_only:
+                n.bcl_complete_blast(run,owners_and_samples,bcl_output_dir)
 
         # Clean up
         print("Finished BCL Pipeline :-]")

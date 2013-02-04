@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -525,6 +525,15 @@ if __name__=="__main__":
         sys.exit(1)
 
     # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
+    
+    # Check for BCL fastq converter and bowtie
+    if not os.path.isfile("/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl"):
+        print("Expected ConfigureBclToFastq at %s but it wasn't there!" % ("/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl"))
+        sys.exit(1)
+
+    if not any([os.path.exists(os.path.join(p,"bowtie2")) for p in os.environ["PATH"].split(os.pathsep)]):
+        print("bowtie2 is not in your path. Add it to your path.")
+        sys.exit(1)
 
     # Make Sure Run is formatted correctly
     if run[-1] == "/":

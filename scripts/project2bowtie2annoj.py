@@ -136,7 +136,7 @@ def local2mysql(sam_file,host,database,tablename,mysql_user,mysql_password):
         fetcher.write("$title = '%s';\n" % (tablename))
         fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
         fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
-        fetcher.write("require_once '<PUT RELATIVE PATH TO HTML PAGE>/includes/common_reads.php';\n")
+        fetcher.write("require_once '<PUT RELATIVE PATH TO INCLUDES FOLDER>/includes/common_reads.php';\n")
         fetcher.write("?>\n")
 
     # --------------------- Create Track Information ------------------------ #
@@ -151,25 +151,27 @@ def local2mysql(sam_file,host,database,tablename,mysql_user,mysql_password):
         track_def.write(" scale: 0.03\n")
         track_def.write("},\n")
 
-def get_sample_folder_paths(project):
+def get_folder_paths(project):
     """
     Creates a list of "Sample" folders from the Unaligned/Project/ folder specified
     """
 
-    return [project +"/" + x for x in os.listdir(project) if "Sample" in x ]
+    return [project +"/" + x for x in os.listdir(project) if os.path.isdir(x)]
 
 if __name__=="__main__":
     # Makes playing with Unix nicer. Mostly a hold over from using STDIN
     signal.signal(signal.SIGPIPE,signal.SIG_DFL)
 
     # Configure Arguement Parser
-    parser = MyParser(description = "Given a Project Folder this script will Bowtie every Sample Folder and upload its contents to Annoj.\
+    parser = MyParser(description = "Given a Project Folder this script will Bowtie check each folder for Fastq's.\
+                                     If there are Fastq's then Bowtie2 will be performed.\
                                      Additionally, a fetcher and Track Definition are created. ")
 
-    parser.add_argument("-p","--project", help = "Absolute path to a BCL-Unaligned Project Folder")
+    parser.add_argument("-p","--project", help = "Absolute path to a Project Folder")
     parser.add_argument("-ho","--host",help = "This is the mysql host you'd like to put your data on. Eg - thumper-e3, thumper-e4, etc...")
     parser.add_argument("-db","--database",help = "What is the name of the database you'd like to put your data in. If it does not exist it will be created for you.")
-    parser.add_argument("-t","--tablename", help = "The name of the table you'd like to call this data")
+    parser.add_argument("-i","--bowtie-indexes",help="Path to the Bowtie Indexes.",default="/data/home/seq/bin/bowtie2/INDEXES/tair10")
+    parser.add_argument("-o","--bowtie-only",help="Only Bowtie will be performed",action="store_true")
 
     # Get Command Line Options
     command_line_options = vars(parser.parse_args())
@@ -177,13 +179,14 @@ if __name__=="__main__":
     database   = command_line_options["database"]
     host       = command_line_options["host"]
     project    = command_line_options["project"]
-    tablename  = command_line_options["tablename"]
+    bowtie_indexes = command_line_options["bowtie_indexes"]
+    bowtie_only = command_line_options["bowtie_only"]
+
 
     # -------------------- BOWTIE ARGUMENTS --------------------- #
 
     path_to_bowtie = "bowtie2"
-    bowtie_options = "--local -p 12"
-    bowtie_indexes = "/data/home/seq/bin/bowtie2/INDEXES/tair10"
+    bowtie_options = "--local -p 8 -f"
 
     # --------------------- MySQL USER and PASSWORD -------------- #
 
@@ -192,7 +195,7 @@ if __name__=="__main__":
 
     # ------------------------------------------------------------ #
 
-    if not database or not host or not project or not tablename:
+    if not database or not host or not project:
         parser.print_help()
         sys.exit(1)
 
@@ -203,21 +206,27 @@ if __name__=="__main__":
         sys.exit(1)
 
     # Main Script
-    sample_folders = get_sample_folder_paths(project)
+    folders = get_folder_paths(project)
 
-    for folder in sample_folders:
+    for folder in folders:
         print("Working on %s" % (folder)) 
 
         current_folder = folder
 
         os.chdir(current_folder)
 
+        # Get Folder name for Table Name
+        basename  = os.path.basename(current_folder).replace("Sample_","")
+        tablename = basename
+
         # Gunzip Everything
         gunzip_command = "gunzip *.gz"
         subprocess.call(gunzip_command,shell=True)
 
         # Gather up all fastq's
-        fastqs = [x for x in os.listdir(current_folder) if "fastq" in x]
+        #fastqs = [x for x in os.listdir(current_folder) if "fastq" in x]
+
+        fastqs = ["AAAAAA.fa"]
 
         if len(fastqs) < 1:
             print("Skipping %s since there are no fastqs" % folder)
@@ -228,14 +237,16 @@ if __name__=="__main__":
         subprocess.call(bowtie_command,shell=True)
 
         # # Run local2mysql
-        # create_annoj_folder = "mkdir annoj"
-        # subprocess.call(create_annoj_folder,shell=True)
+        if not bowtie_only:
+            print("Running Import to Annoj")
+            create_annoj_folder = "mkdir annoj"
+            subprocess.call(create_annoj_folder,shell=True)
 
-        # with open("bowtie2.out.sam","r") as sam_file:
+            with open("bowtie2.out.sam","r") as sam_file:
 
-        #     os.chdir(current_folder + "/annoj")
-            
-        #     local2mysql(sam_file,host,database,tablename,mysql_user,mysql_password)
+                os.chdir(current_folder + "/annoj")
+                
+                local2mysql(sam_file,host,database,tablename,mysql_user,mysql_password)
 
 
 

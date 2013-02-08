@@ -207,7 +207,7 @@ def runBCL(run,sample_sheet,bcl_output_dir):
     os.chdir(run + "/Data/Intensities/BaseCalls")
     print("Current working Dir is %s") % os.getcwd()
 
-    bcl_command = " ".join(["/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl","--output-dir","../../../" + bcl_output_dir,"--sample-sheet",sample_sheet + ".csv"])
+    bcl_command = " ".join(["configureBclToFastq.pl","--output-dir","../../../" + bcl_output_dir,"--sample-sheet",sample_sheet + ".csv"])
 
     print("Finished Bcl Command")
 
@@ -470,6 +470,17 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                 track_def.write(" scale: 0.03\n")
                 track_def.write("},\n")
 
+def check_path_for_file(f):
+    path = os.environ["PATH"].split(":")
+
+    for p in path:
+
+        if os.path.isfile(p + "/" + f):
+            return True
+
+    else:
+        return False
+
 # Main Running Function
 if __name__=="__main__":
     
@@ -527,8 +538,8 @@ if __name__=="__main__":
     # ---------------------------- Clean-Up Inputs and Turn on Flags ----------------------------------- #
     
     # Check for BCL fastq converter and bowtie
-    if not os.path.isfile("/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl"):
-        print("Expected ConfigureBclToFastq at %s but it wasn't there!" % ("/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl"))
+    if not check_path_for_file("configureBclToFastq.pl"):
+        print("\nExpected configureBclToFastq.pl to be in your $PATH but it wasn't there!\n")
         sys.exit(1)
 
     if not any([os.path.exists(os.path.join(p,"bowtie2")) for p in os.environ["PATH"].split(os.pathsep)]):

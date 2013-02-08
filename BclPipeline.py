@@ -542,8 +542,8 @@ if __name__=="__main__":
         print("\nExpected configureBclToFastq.pl to be in your $PATH but it wasn't there!\n")
         sys.exit(1)
 
-    if not any([os.path.exists(os.path.join(p,"bowtie2")) for p in os.environ["PATH"].split(os.pathsep)]):
-        print("bowtie2 is not in your path. Add it to your path.")
+    if not check_path_for_file("bowtie2"):
+        print("\nExpected bowtie2 to be in your $PATH but it wasn't there!\n")
         sys.exit(1)
 
     # Make Sure Run is formatted correctly

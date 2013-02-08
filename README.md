@@ -3,7 +3,7 @@ Joe Feeney: jfeeney at salk edu
 License: Buy a Joe Feeney a beer if this script doesn't suck.
 
 # Uses
-- CASAVA 1.8.2
+- At least CASAVA 1.8.0 and that configureBclToFastq.pl is in your path and excecutable.
 - Python 2.7.1
 
 # Overview

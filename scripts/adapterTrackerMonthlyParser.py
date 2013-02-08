@@ -62,7 +62,7 @@ if __name__=="__main__":
 
         with open("SampleSheet_" + k + ".csv","w") as sample_sheet_out:
 
-            sample_sheet_out.write("D,Lane,Sample,Sample_Ref,Index,Descriptor,Control_lane,Recipe,Operator,Project\n")
+            sample_sheet_out.write("FCID,Lane,Sample_ID,Sample_Ref,Index,Descripton,Control,Recipe,Operator,Sample_Project\n")
 
             for row in runs[k]:
 

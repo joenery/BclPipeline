@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -224,9 +224,7 @@ if __name__=="__main__":
         subprocess.call(gunzip_command,shell=True)
 
         # Gather up all fastq's
-        #fastqs = [x for x in os.listdir(current_folder) if "fastq" in x]
-
-        fastqs = ["AAAAAA.fa"]
+        fastqs = [x for x in os.listdir(current_folder) if "fastq" in x]
 
         if len(fastqs) < 1:
             print("Skipping %s since there are no fastqs" % folder)

@@ -8,12 +8,12 @@ import re
 from warnings import filterwarnings
 import time
 import smtplib
+from collections import defaultdict
 
 # Non-Standard Python Modules
 import daemon
 import MySQLdb as mdb
 
-# NOTE: Sequences that are upload to annoj should only be what the snip string specifies not the entire sequence
 # NOTE: Bowtie 2 should auto-magically run seperate analysis if the reads are paired-end. COS IT DON"T!!
 
 # Classes and Functions
@@ -30,8 +30,7 @@ class notification(object):
         self.password = "g3n0m3analysis"
         self.FROM     = "genomic.analysis.ecker@gmail.com"
 
-        # self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu","ronan.omalley@gmail.com"]
-        self.admin = ["jfeeneysd@gmail.com"]
+        self.admin    = ["jfeeneysd@gmail.com","jnery@salk.edu"]
 
     def send_message(self,TO,SUBJECT,TEXT):
         """
@@ -107,10 +106,12 @@ def parseSampleSheet(run,sample_sheet):
 
     with open(run + "/Data/Intensities/BaseCalls/%s.csv" % sample_sheet,"r") as csv:
 
-        projects_and_samples = {}
-        bowtie_projects = {}
-        annoj_projects = {}
-        owners_and_samples = {}
+        # Note: If you query against a default dict and don't place anything in there
+        # A key will Still be created!
+        projects_and_samples = defaultdict(list)
+        bowtie_projects      = defaultdict(list)
+        annoj_projects       = defaultdict(list)
+        owners_and_samples   = defaultdict(list)
 
         for i,line in enumerate(csv):
 
@@ -119,29 +120,21 @@ def parseSampleSheet(run,sample_sheet):
 
             row = line.strip().split(",")
 
-            options        = row[0]
             sample_name    = row[2]
+            options        = row[5]
             operator_email = row[8]
             project        = row[9]
 
-            # if Project is not already in dictionary add it.
-            if project not in projects_and_samples.keys():
-                projects_and_samples[project] = []
-
             # Add the information to the Project-> Sample List
-            if (sample_name,options) not in projects_and_samples[project]:
+            if sample_name not in projects_and_samples[project]:
                 projects_and_samples[project].append(sample_name)
 
             # Begin Parsing the Bowtie and Annoj Stuff
-            options = line.strip().split(",")[5]
-
             if options != "" and options != line.strip() and filter(None,options.split(";")) != []:
-
                 row = options.split(";")
                 genome = row[0]
                 annoj_thumper = row[1]
                 annoj_database = row[2]
-
 
                 # Check Constraints
                 if genome == "" and (annoj_thumper != "" or annoj_database != ""):
@@ -149,33 +142,24 @@ def parseSampleSheet(run,sample_sheet):
                     continue
 
                 if genome != "" and annoj_thumper == "" and annoj_database !="":
-                    print("%s %s options cannot be parsed. Bowtie selected, and MySQL table specified but now MySQL Host specified" % (project,sample_name))
+                    print("%s %s options cannot be parsed. Bowtie selected and MySQL table specified but no MySQL Host specified" % (project,sample_name))
                     continue
 
                 # Populate the Project Dictionaries
                 # Bowtie
-                if project not in bowtie_projects and genome != "":
-                    bowtie_projects[project] = []
-
-                if (sample_name,genome) not in bowtie_projects[project] and genome !="":
+                if genome !="" and (sample_name,genome) not in bowtie_projects[project]:
                     bowtie_projects[project].append((sample_name,genome))
 
                 # Annoj
-                if project not in annoj_projects and annoj_thumper != "":
-                    annoj_projects[project] = []
-
-                if (sample_name,annoj_thumper,annoj_database) not in annoj_projects[project] and annoj_thumper != "":
+                if annoj_thumper != "" and (sample_name,annoj_thumper,annoj_database) not in annoj_projects[project]:
                     annoj_projects[project].append((sample_name,annoj_thumper,annoj_database))
 
             # Get the operator_emails and samples all together
             if operator_email != "":
-                if operator_email not in owners_and_samples.keys():
-                    owners_and_samples[operator_email] = []
-
                 if (project,sample_name) not in owners_and_samples[operator_email]:
                     owners_and_samples[operator_email].append((project,sample_name))
 
-    return (projects_and_samples,bowtie_projects,annoj_projects,owners_and_samples)
+    return {"projects_and_samples":projects_and_samples, "bowtie_projects":bowtie_projects, "annoj_projects":annoj_projects, "owners_and_samples":owners_and_samples}
 
 def runBCL(run,sample_sheet,bcl_output_dir):
     """
@@ -187,9 +171,7 @@ def runBCL(run,sample_sheet,bcl_output_dir):
     os.chdir(run + "/Data/Intensities/BaseCalls")
     print("Current working Dir is %s") % os.getcwd()
 
-    bcl_command = " ".join(["/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl","--output-dir","../../../" + bcl_output_dir,"--sample-sheet",sample_sheet + ".csv"])
-
-    #bcl_command = "/usr/CASAVA-1.8.2/bin/configureBclToFastq.pl --output-dir ../../../Unaligned"
+    bcl_command = " ".join(["configureBclToFastq.pl","--output-dir","../../../" + bcl_output_dir,"--sample-sheet",sample_sheet + ".csv"])
 
     print("Finished Bcl Command")
 
@@ -240,7 +222,7 @@ def bowtieProjects(run,projects_and_samples,processors,bcl_output_dir):
             fastq_files = [x for x in os.listdir(s) if "fastq" in x]
 
             # Bowtie
-            bowtie_command = "bowtie2 --local -p %s /data/home/seq/bin/bowtie2/INDEXES/tair10 %s 1> bowtie2.out.sam 2> bowtie2.stats" % (processors,",".join(fastq_files))
+            bowtie_command = "bowtie2 --local -p %s /home/seq/bin/bowtie2/INDEXES/tair10 %s 1> bowtie2.out.sam 2> bowtie2.stats" % (processors,",".join(fastq_files))
             subprocess.call(bowtie_command,shell=True)
 
             print("Finished gunzipping and Bowtie-ing %s:%s" % (project,s))
@@ -307,7 +289,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
             host        = sample[1]
             database    = sample[2]
 
-            # If no database is given assume that
+            # If no database is given assume that the Project name is the Database
             if database == "":
                 database = project
 
@@ -326,6 +308,12 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
             chromosome3 = open("3.aj","w")
             chromosome4 = open("4.aj","w")
             chromosome5 = open("5.aj","w")
+
+            count_1 = 0
+            count_2 = 0
+            count_3 = 0
+            count_4 = 0
+            count_5 = 0
 
             with open(sample_folder + "/bowtie2.out.sam") as bt:
 
@@ -365,19 +353,24 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
 
                     # Write to output
                     if   chromosome == "1":
-                        chromosome1.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_1 += 1
+                        chromosome1.write("\t".join([str(count_1),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                     elif chromosome == "2":
-                        chromosome2.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_2 +=1
+                        chromosome2.write("\t".join([str(count_2),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                     elif chromosome == "3":
-                        chromosome3.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_3 += 1
+                        chromosome3.write("\t".join([str(count_3),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                     elif chromosome == "4":
-                        chromosome4.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_4 += 1
+                        chromosome4.write("\t".join([str(count_4),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                     elif chromosome == "5":
-                        chromosome5.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_5 += 1
+                        chromosome5.write("\t".join([str(count_5),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                 # Close Chromosome Files
                 chromosome1.close()
@@ -419,7 +412,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                     query = "drop table if exists %s.reads_%s_%d" % (database,tablename,i)
                     cur.execute(query)
 
-                    query = "create table %s.reads_%s_%d(assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,i)
+                    query = "create table %s.reads_%s_%d(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,i)
                     cur.execute(query)
 
                     query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.reads_%s_%d""" % (os.path.realpath(chrom_file),database,tablename,i)
@@ -451,6 +444,17 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                 track_def.write(" height: '90', \n")
                 track_def.write(" scale: 0.03\n")
                 track_def.write("},\n")
+
+def check_path_for_file(f):
+    path = os.environ["PATH"].split(":")
+
+    for p in path:
+
+        if os.path.isfile(p + "/" + f):
+            return True
+
+    else:
+        return False
 
 # Main Running Function
 if __name__=="__main__":
@@ -490,6 +494,16 @@ if __name__=="__main__":
     if not os.path.isfile(run + "/Data/Intensities/BaseCalls/" + sample_sheet + ".csv"):
         print("\nIt looks like %s doesn't exist in %s Can you create it or make sure you are in the right directory.\n" % (sample_sheet,run + "/Data/Intensities/BaseCalls/"))
         sys.exit(1)
+
+    # Check for BCL fastq converter and bowtie
+    if not check_path_for_file("configureBclToFastq.pl"):
+        print("\nExpected configureBclToFastq.pl to be in your $PATH but it wasn't there!\n")
+        sys.exit(1)
+
+    if not check_path_for_file("bowtie2"):
+        print("\nExpected bowtie2 to be in your $PATH but it wasn't there!\n")
+        sys.exit(1)
+
 
     # -------------------------- Parse SampleSheet.csv  ------------------------------- #
     
@@ -546,16 +560,3 @@ if __name__=="__main__":
         # Clean up
         print("Finished BCL Pipeline :-]")
         run_log.close()
-
-    # # ------------------------------ Testing --------------------------------------- #
-
-    # print("Running Bowtie Analysis For All Files")
-    # bowtieProjects(run,bowtie_samples,processors)
-
-    # print("Running Annoj prep and upload")
-    # convert_and_upload_sam2_annoj(run,annoj_samples)
-
-    # n.send_message(['jfeeneysd'],"Exception Test","Did this work?")
-    # n.bcl_complete_blast(run,owners_and_samples)
-    # n.admin_message("Bcl Running","Bcl Running")
-    # n.bcl_start_blast(run,owners_and_samples)

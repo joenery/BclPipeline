@@ -345,6 +345,12 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
             chromosome4 = open("4.aj","w")
             chromosome5 = open("5.aj","w")
 
+            count_1 = 0
+            count_2 = 0
+            count_3 = 0
+            count_4 = 0
+            count_5 = 0
+
             with open(sample_folder + "/bowtie2.out.sam") as bt:
 
                 for i,line in enumerate(bt):
@@ -383,19 +389,24 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
 
                     # Write to output
                     if   chromosome == "1":
-                        chromosome1.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_1 += 1
+                        chromosome1.write("\t".join([str(count_1),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                     elif chromosome == "2":
-                        chromosome2.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_2 +=1
+                        chromosome2.write("\t".join([str(count_2),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                     elif chromosome == "3":
-                        chromosome3.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_3 += 1
+                        chromosome3.write("\t".join([str(count_3),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                     elif chromosome == "4":
-                        chromosome4.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_4 += 1
+                        chromosome4.write("\t".join([str(count_4),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                     elif chromosome == "5":
-                        chromosome5.write("\t".join([chromosome,direction,read_start,read_end,sequence + "\n"]))
+                        count_5 += 1
+                        chromosome5.write("\t".join([str(count_5),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
                 # Close Chromosome Files
                 chromosome1.close()
@@ -437,7 +448,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                     query = "drop table if exists %s.reads_%s_%d" % (database,tablename,i)
                     cur.execute(query)
 
-                    query = "create table %s.reads_%s_%d(assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,i)
+                    query = "create table %s.reads_%s_%d(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,i)
                     cur.execute(query)
 
                     query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.reads_%s_%d""" % (os.path.realpath(chrom_file),database,tablename,i)
@@ -455,7 +466,7 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                 fetcher.write("$title = '%s';\n" % (tablename))
                 fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
                 fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
-                fetcher.write("require_once '<PUT RELATIVE PATH TO HTML PAGE>/includes/common_reads.php';\n")
+                fetcher.write("require_once '<PUT RELATIVE PATH TO INCLUDES>/includes/common_reads.php';\n")
                 fetcher.write("?>\n")
 
             # --------------------- Create Track Information ------------------------ #

@@ -52,10 +52,21 @@ class project(object):
 
         self.bcl_output_dir = bcl_output_dir
 
+        # Check undetermined Indices?
+        self.undetermined = False
+
     def parseSampleSheet(self):
         """
         """
         projects = defaultdict(dict)
+
+        # Strategy: Take two passes at the file
+        # 1) Get all the Sample Information and save in to a dictionary. If there is a lane with
+        #    no Index then mark a flag and alert the user that a modified version of their sample
+        #    sheet will be created
+        # 2) If FLAG from above then create a new sample_sheet
+
+        samples_with_no_indexes = False
 
         with open(self.sample_sheet, "r") as sample_sheet:
 
@@ -67,17 +78,18 @@ class project(object):
                 row = line.strip().split(",")
 
                 sample_name  = row[2].replace(".","_").replace("-","_").replace("#","_num_")
+                index        = row[4]
                 bowtie_annoj = row[5]
                 owner_email  = row[8]
                 project      = row[9].replace(".","_").replace("-","_").replace("#","_num_")
 
                 parsed_options = self.parseBowtieAndAnnojOptions(bowtie_annoj)
 
-                print parsed_options
-
                 genome      = parsed_options["genome"]
                 destination = parsed_options["destination"]
                 database    = parsed_options["database"]
+                barcode1    = parsed_options["barcode1"]
+                barcode2    = parsed_options["barcode2"]
 
                 # Check for Bad Entries
                 if genome and database and not destination:
@@ -87,15 +99,21 @@ class project(object):
                 if not genome and database and destination:
                     print("Error in line %s of %s: %s and %s specified but bowtie was not selected to run" % (i,os.path.basename(self.sample_sheet),databasem,destination))
 
+                if not index:
+                    samples_with_no_indexes = True
 
                 # Yup
                 if genome == "bt":
                     genome = "tair10"
 
                 # Add to dictionary
-                projects[project][sample_name] = {"genome":genome,"destination_server":destination,"database":database}
+                projects[project][sample_name] = {"genome":genome,"destination_server":destination,"database":database,"barcode1":barcode1,"barcode2":barcode2}
 
         self.projects = projects
+
+        if samples_with_no_indexes:
+
+            self.convertSampleSheet()
 
     def runConfigureBclToFastq(self):
         """
@@ -157,6 +175,7 @@ class project(object):
 
                 local2mysql("../bowtie2.out.sam",destination,database,sample)
 
+    # Private Methods
     @staticmethod
     def parseBowtieAndAnnojOptions(bowtie_and_annoj_options):
 
@@ -178,14 +197,37 @@ class project(object):
 
         return {"genome":genome, "destination":destination,"database":database,"barcode1":barcode1,"barcode2":barcode2}
 
+    def convertSampleSheet(self,number_of_lanes=8):
+
+        samples_with_no_indexes = defaultdict(dict)
+        all_lanes = {str(x):[] for x in range(1,number_of_lanes + 1)}
+
+        # grab the lanes and sort on them
+        with open(self.sample_sheet,"r") as sample_sheet:
+
+                for i,line in enumerate(sample_sheet):
+
+                    if i == 0:
+                        header = line.strip()
+                        continue
+
+                    row = line.strip().split(",")
+
+                    lane = row[1]
+
+                    all_lanes[lane].append(line)
+
+        for lane in all_lanes:
+            all_lanes[lane].sort(key=lambda x: x[4],reverse=True)
+
+            print all_lanes[lane]
+
+
+        self.undetermined = True
+
 if __name__=="__main__":
     print("Testing...")
 
     p = project(run_path="/mnt/thumper-e3/home/jfeeneysd/130116_JONAS_2139",sample_sheet="SampleSheet.Test.2.csv",bcl_output_dir="SuperTest")
 
     p.parseSampleSheet()
-
-    # print p.projects
-
-    p.runConfigureBclToFastq()
-    p.bowtieProjects()

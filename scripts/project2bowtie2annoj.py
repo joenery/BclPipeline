@@ -155,8 +155,7 @@ def get_folder_paths(project):
     """
     Creates a list of "Sample" folders from the Unaligned/Project/ folder specified
     """
-
-    return [project +"/" + x for x in os.listdir(project) if os.path.isdir(x)]
+    return [project + x for x in os.listdir(project) if os.path.isdir(project + "/" +x)]
 
 if __name__=="__main__":
     # Makes playing with Unix nicer. Mostly a hold over from using STDIN
@@ -186,7 +185,7 @@ if __name__=="__main__":
     # -------------------- BOWTIE ARGUMENTS --------------------- #
 
     path_to_bowtie = "bowtie2"
-    bowtie_options = "--local -p 8 -f"
+    bowtie_options = "--local -p 8"
 
     # --------------------- MySQL USER and PASSWORD -------------- #
 
@@ -207,7 +206,7 @@ if __name__=="__main__":
 
     # Main Script
     folders = get_folder_paths(project)
-
+    
     for folder in folders:
         print("Working on %s" % (folder)) 
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python -u
 
 import os
 import sys
@@ -134,27 +134,32 @@ def parseSampleSheet(run,sample_sheet):
             # Begin Parsing the Bowtie and Annoj Stuff
             if options != "" and options != line.strip() and filter(None,options.split(";")) != []:
                 row = options.split(";")
-                genome = row[0]
-                annoj_thumper = row[1]
-                annoj_database = row[2]
 
-                # Check Constraints
-                if genome == "" and (annoj_thumper != "" or annoj_database != ""):
-                    print("%s %s options cannot be parsed. Annoj option selected but Bowtie was not." % (project,sample_name))
-                    continue
+                try:
+                    genome = row[0]
+                    annoj_thumper = row[1]
+                    annoj_database = row[2]
 
-                if genome != "" and annoj_thumper == "" and annoj_database !="":
-                    print("%s %s options cannot be parsed. Bowtie selected and MySQL table specified but no MySQL Host specified" % (project,sample_name))
-                    continue
+                    # Check Constraints
+                    if genome == "" and (annoj_thumper != "" or annoj_database != ""):
+                        print("%s %s options cannot be parsed. Annoj option selected but Bowtie was not." % (project,sample_name))
+                        continue
 
-                # Populate the Project Dictionaries
-                # Bowtie
-                if genome !="" and (sample_name,genome) not in bowtie_projects[project]:
-                    bowtie_projects[project].append((sample_name,genome))
+                    if genome != "" and annoj_thumper == "" and annoj_database !="":
+                        print("%s %s options cannot be parsed. Bowtie selected and MySQL table specified but no MySQL Host specified" % (project,sample_name))
+                        continue
 
-                # Annoj
-                if annoj_thumper != "" and (sample_name,annoj_thumper,annoj_database) not in annoj_projects[project]:
-                    annoj_projects[project].append((sample_name,annoj_thumper,annoj_database))
+                    # Populate the Project Dictionaries
+                    # Bowtie
+                    if genome !="" and (sample_name,genome) not in bowtie_projects[project]:
+                        bowtie_projects[project].append((sample_name,genome))
+
+                    # Annoj
+                    if annoj_thumper != "" and (sample_name,annoj_thumper,annoj_database) not in annoj_projects[project]:
+                        annoj_projects[project].append((sample_name,annoj_thumper,annoj_database))
+
+                except IndexError:
+                    None
 
             # Get the operator_emails and samples all together
             if operator_email != "":
@@ -255,10 +260,10 @@ def bowtieProjects(run,projects_and_samples,processors,bcl_output_dir):
             subprocess.call(gunzip_command,shell=True)
 
             # Get a list of all files that contain "FASTQ"
-            fastq_files = [x for x in os.listdir(s) if "fastq" in x]
+            fastq_files = [x for x in os.listdir(s) if "fastq" in x and "_R1_" in x]
 
             # Bowtie
-            bowtie_command = "bowtie2 --local -p %s /data/home/seq/bin/bowtie2/INDEXES/tair10 %s 1> bowtie2.out.sam 2> bowtie2.stats" % (processors,",".join(fastq_files))
+            bowtie_command = "bowtie2 --local -p %s /home/seq/bin/bowtie2/INDEXES/tair10 %s 1> bowtie2.out.sam 2> bowtie2.stats" % (processors,",".join(fastq_files))
             subprocess.call(bowtie_command,shell=True)
 
             print("Finished gunzipping and Bowtie-ing %s:%s" % (project,s))

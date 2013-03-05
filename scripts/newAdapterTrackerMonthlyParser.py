@@ -39,14 +39,23 @@ if __name__=="__main__":
     if os.path.isfile(barcodes_path):
 
         barcodes = {}
+        barcodes_sideA = {}
+        barcodes_sideB = {}
 
         with open(barcodes_path,"r") as barcodes_file:
             for line in barcodes_file:
 
                 row = line.strip().split()
                 
-                key = row[1]
+                side  = row[0] 
+                key   = row[1]
                 value = row[2]
+
+                if side == "A":
+                    barcodes_sideA[key] = value
+
+                elif side == "B":
+                    barcodes_sideB[key] = value
 
                 barcodes[key] = value 
 
@@ -88,13 +97,13 @@ if __name__=="__main__":
                 barcode1         = row[13]
                 barcode2         = row[14]
 
-                if barcode1 in barcodes:
-                    barcode1_sequence = barcodes[barcode1]
+                if barcode1 in barcodes_sideA:
+                    barcode1_sequence = barcodes_sideA[barcode1]
                 else:
                     barcode1_sequence = ""
 
-                if barcode2 in barcodes:
-                    barcode2_sequence = barcodes[barcode2]
+                if barcode2 in barcodes_sideB:
+                    barcode2_sequence = barcodes_sideB[barcode2]
                 else:
                     barcode2_sequence = ""
 

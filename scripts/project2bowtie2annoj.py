@@ -169,7 +169,7 @@ if __name__=="__main__":
     parser.add_argument("-p","--project", help = "Absolute path to a Project Folder")
     parser.add_argument("-ho","--host",help = "This is the mysql host you'd like to put your data on. Eg - thumper-e3, thumper-e4, etc...")
     parser.add_argument("-db","--database",help = "What is the name of the database you'd like to put your data in. If it does not exist it will be created for you.")
-    parser.add_argument("-i","--bowtie-indexes",help="Path to the Bowtie Indexes.",default="/data/home/seq/bin/bowtie2/INDEXES/tair10")
+    parser.add_argument("-i","--bowtie-indexes",help="Path to the Bowtie Indexes.",default="/home/seq/bin/bowtie2/INDEXES/tair10")
     parser.add_argument("-o","--bowtie-only",help="Only Bowtie will be performed",action="store_true")
 
     # Get Command Line Options
@@ -223,11 +223,15 @@ if __name__=="__main__":
         subprocess.call(gunzip_command,shell=True)
 
         # Gather up all fastq's
-        fastqs = [x for x in os.listdir(current_folder) if "fastq" in x]
+        fastqs = [x for x in os.listdir(current_folder) if "fastq" in x and "_R1_" in x]
 
         if len(fastqs) < 1:
-            print("Skipping %s since there are no fastqs" % folder)
-            continue
+
+            fastqs = [x for x in os.listdir(current_folder) if ".fastq" in x and "_R1_" not in x and "_R2_" not in x]
+
+            if len(fastqs) == 0:
+                print("Skipping %s since there are no fastqs" % folder)
+                continue
 
         # Call Bowtie2
         bowtie_command = " ".join([path_to_bowtie,bowtie_options,bowtie_indexes,",".join(fastqs),"1> bowtie2.out.sam","2> bowtie2.stats"])

@@ -14,7 +14,7 @@ def system_call(command,err_message):
 
     val = subprocess.call(command)
 
-    if val !=0 or val != None:
+    if val !=0 :
         print("".join(["\n",err_message,"\n","Terminating Script"]))
         sys.exit(1)
 
@@ -60,4 +60,4 @@ def bowtie_folder(folder,options="--local -p 4",bowtie_shell_call="bowtie2",inde
 if __name__ == "__main__":
     print("Testing...")
 
-    bowtie_folder(folder="/mnt/thumper-e1/home/jfeeneysd/130108_JONAS_2137_AD16YKACXX/Unaligned_Anna/Project_DAP/Sample_ANAC029/",indexes_genome="Fuck_that")
+    bowtie_folder(folder="/mnt/thumper-e1/home/jfeeneysd/130108_JONAS_2137_AD16YKACXX/Unaligned_Anna/Project_DAP/Sample_ANAC029/",indexes_genome="tair10")

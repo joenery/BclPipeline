@@ -2,18 +2,64 @@
 
 import os
 import sys
-import MySQLdb as mdb
 import re
 import signal
-from warnings import filterwarnings
 import subprocess
+import argparse
+from warnings import filterwarnings
+import MySQLdb as mdb
 
 
-def local2mysql(sam,host,database,tablename):
+class MyParser(argparse.ArgumentParser):
+    def error(self,message):
+        sys.stderr.write("error: %s\n" % message)
+        self.print_help()
+        sys.exit(2)
+
+def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
     
     # assume the files are straight out of Bowtie 2 with no options and they contain unmapped reads
 
     # ----------------- Create the chromosome files here ----------------------- #
+    # Pass through Sam file and from that create the output chromosomes
+    # Doing this on the fly rather than having to pass the info
+
+    open_files    = {}
+    open_files_id = {}
+
+    print("Creating Chromosome Files")
+    with open(sam,"r") as sam_chrom_count_object:
+
+        passed_first_chromosome_header = False
+
+        for i,line in enumerate(sam_chrom_count_object):
+            row = line.strip().split()
+
+            marker = "@SQ"
+
+            if row[0] != marker and not passed_first_chromosome_header:
+                # We are at the beginning of sam file
+                continue
+
+            elif row[0] == "@SQ":
+                passed_first_chromosome_header = True
+
+                # Get chromosome number
+                chromosome = row[1].split(":")[1]
+                open_files[chromosome]    = open(chromosome + ".aj","w")
+                open_files_id[chromosome] = 0
+
+            elif row[0] != marker and passed_first_chromosome_header:
+                break
+
+            elif i > 10 and not passed_first_chromosome_header:
+                # There aren't any headers in the sam file
+                # Can't continue
+                print("\nError: It looks like either the SAM file you've given doesn't have headers!\n")
+                print("Please re-run Import2AnnojSimple with a SAM file that has headers\n")
+                sys.exit(1)
+
+    # --------------------- Parsing Sam File Algins in to respective Chromosome Files ------ #
     with open(sam,"r") as sam_file:
         
         print("Creating AJ Files")
@@ -30,11 +76,22 @@ def local2mysql(sam,host,database,tablename):
         count_5 = 0
 
         for i,line in enumerate(sam_file):
+            # Create a hash of things to skip
+            skip_these_lines = set()
+            skip_these_lines.add("@HD")
+            skip_these_lines.add("@SQ")
+            skip_these_lines.add("@PG")
+            skip_these_lines.add("*")
+            skip_these_lines.add("chloroplast")
+            skip_these_lines.add("mitochondira")
+            skip_these_lines.add("ChrC")
+            skip_these_lines.add("ChrM")
 
-            # Skip the headers
-            if i < 9:
+            header = line.strip().split()[0]
+
+            if header in skip_these_lines:
                 continue
-
+            
             # Get Variables
             row         = line.strip().strip().split("\t")
             chromosome  = row[2].replace("Chr","").replace("chr","")
@@ -61,37 +118,21 @@ def local2mysql(sam,host,database,tablename):
                 direction = "-"
 
             # Write to output
-            if   chromosome == "1":
-                count_1 += 1
-                chromosome1.write("\t".join([str(count_1),chromosome,direction,read_start,read_end,sequence + "\n"]))
+            if chromosome in open_files:
+                open_files_id[chromosome] += 1
 
-            elif chromosome == "2":
-                count_2 +=1
-                chromosome2.write("\t".join([str(count_2),chromosome,direction,read_start,read_end,sequence + "\n"]))
+                count = open_files_id[chromosome]
 
-            elif chromosome == "3":
-                count_3 += 1
-                chromosome3.write("\t".join([str(count_3),chromosome,direction,read_start,read_end,sequence + "\n"]))
-
-            elif chromosome == "4":
-                count_4 += 1
-                chromosome4.write("\t".join([str(count_4),chromosome,direction,read_start,read_end,sequence + "\n"]))
-
-            elif chromosome == "5":
-                count_5 += 1
-                chromosome5.write("\t".join([str(count_5),chromosome,direction,read_start,read_end,sequence + "\n"]))
+                open_files[chromosome].write("\t".join([str(count),chromosome,direction,read_start,read_end,sequence + "\n"]))
 
         # Close Chromosomes
 
-        chromosome1.close()
-        chromosome2.close()
-        chromosome3.close()
-        chromosome4.close()
-        chromosome5.close()
+        for f in open_files:
+            open_files[f].close()
         
         # sort Chromosome files by position and direction
         print("Sorting Chromosomes")
-        for i in range(1,6):
+        for i in range(1,len(open_files) + 1):
             command = "cat %s | sort -k4,4n -k3,3 > x; mv x %s" % ( str(i) + ".aj" , str(i) + ".aj" )
             subprocess.call(command,shell = True)
 
@@ -105,7 +146,7 @@ def local2mysql(sam,host,database,tablename):
         print("Connecting to MySQL Database")
         
         try:
-            db = mdb.connect(host=host,user = 'mysql',passwd ='rekce',local_infile = 1)
+            db = mdb.connect(host=host,user = mysql_user,passwd = mysql_password,local_infile = 1)
 
         except mdb.Error,e:
             print("Error %d: %s") % (e.args[0],e.args[1])
@@ -159,5 +200,59 @@ def local2mysql(sam,host,database,tablename):
             track_def.write(" scale: 0.03\n")
             track_def.write("},\n")
 
+
 if __name__ == "__main__":
-    None
+    """
+    Import2AnnojSimple
+    """
+    
+    # Makes playing with Unix nicer. Mostly a hold over from using STDIN
+    signal.signal(signal.SIGPIPE,signal.SIG_DFL)
+
+    # Configure Arguement Parser
+    parser = MyParser(description = "Take a Sam file and put it into a database of your choice.\
+                                     A track definition and fetcher are created in your Current Working Directory\
+                                     for use in your Annoj Setup.")
+
+    mandatory = parser.add_argument_group("MANDATORY")
+    advanced  = parser.add_argument_group("ADVANCED -> Ninjas or Jedi's only!")
+
+    mandatory.add_argument("-i","--input",           help = "Sam file you'd like to put in database")
+    mandatory.add_argument("-ho","--host",           help = "This is the mysql host you'd like to put your data on. Eg - thumper-e3, thumper-e4, etc...")
+    mandatory.add_argument("-db","--database",       help = "What is the name of the database you'd like to put your data in. If it does not exist it will be created for you.")
+    mandatory.add_argument("-t","--tablename",       help = "The name of the table you'd like to call this data")
+    
+    advanced.add_argument("-mu","--mysql-user",      help = "The mysql user you would like to login in as.  DEFAULT: mysql",   default="mysql")
+    advanced.add_argument("-pw","--mysql-password",  help = "The corresponding password for the MySQL user. DEFAULT: rekce",   default="rekce")
+    advanced.add_argument("-s","--store-flat-files", help = "Keep the flat chromosome files that are created. DEFAULT: false", action="store_true")
+
+    # Get Command Line Options
+    command_line_options = vars(parser.parse_args())
+
+    database       = command_line_options["database"]
+    host           = command_line_options["host"]
+    input_file     = command_line_options["input"]
+    tablename      = command_line_options["tablename"]
+    mysql_user     = command_line_options["mysql_user"]
+    mysql_password = command_line_options["mysql_password"]
+    store_flat_files = command_line_options["store_flat_files"]
+
+    # Make sure all commands are present
+    if not database or not host or not input_file or not tablename:
+        print("All options must be given")
+        parser.print_help()
+        sys.exit(1)
+
+    # SCRIPT!
+    try:
+        local2mysql(input_file,host,database,tablename,mysql_user,mysql_password)
+
+    except IOError:
+        # User has given a file name / path that is not correct
+        print("It looks like --> %s <-- doesn't exist!") % (input_file)
+        sys.exit(1)
+
+    if not store_flat_files:
+        print("Finished Upload and Cleaning up Directory")
+        clean_up_directory = ["rm","*.aj"]
+        subprocess.call(" ".join(clean_up_directory),shell=True)

@@ -59,23 +59,11 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
                 print("Please re-run Import2AnnojSimple with a SAM file that has headers\n")
                 sys.exit(1)
 
-    # --------------------- Parsing Sam File Algins in to respective Chromosome Files ------ #
+    # --------------------- Parsing Sam File Aligns in to respective Chromosome Files ------ #
     with open(sam,"r") as sam_file:
         
-        print("Creating AJ Files")
-        chromosome1 = open("1.aj","w")
-        chromosome2 = open("2.aj","w")
-        chromosome3 = open("3.aj","w")
-        chromosome4 = open("4.aj","w")
-        chromosome5 = open("5.aj","w")
-
-        count_1 = 0
-        count_2 = 0
-        count_3 = 0
-        count_4 = 0
-        count_5 = 0
-
         for i,line in enumerate(sam_file):
+
             # Create a hash of things to skip
             skip_these_lines = set()
             skip_these_lines.add("@HD")
@@ -102,7 +90,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
 
 
             # Skip unmapped reads 
-            if chromosome in ["*","chloroplast","mitochondira","ChrC","ChrM"] :
+            if chromosome in skip_these_lines:
                 continue
 
             # From snip string get length of match and create end of read
@@ -160,7 +148,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             query = "create database if not exists %s" % (database)
             cur.execute(query)
 
-            for i in range(1,6):
+            for i in range(1,len(open_files) + 1):
                 chrom_file = str(i) + ".aj"
 
                 query = "drop table if exists %s.reads_%s_%d" % (database,tablename,i)
@@ -200,7 +188,6 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             track_def.write(" scale: 0.03\n")
             track_def.write("},\n")
 
-
 if __name__ == "__main__":
     """
     Import2AnnojSimple
@@ -215,7 +202,7 @@ if __name__ == "__main__":
                                      for use in your Annoj Setup.")
 
     mandatory = parser.add_argument_group("MANDATORY")
-    advanced  = parser.add_argument_group("ADVANCED -> Ninjas or Jedi's only!")
+    advanced  = parser.add_argument_group("ADVANCED -> Ninjas or Jedi only!")
 
     mandatory.add_argument("-i","--input",           help = "Sam file you'd like to put in database")
     mandatory.add_argument("-ho","--host",           help = "This is the mysql host you'd like to put your data on. Eg - thumper-e3, thumper-e4, etc...")

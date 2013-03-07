@@ -168,6 +168,9 @@ class project(object):
     def importProjects2Annoj(self):
         """
         """
+        mysql_user     = "mysql"
+        mysql_password = "rekce"
+
         bcl_output_dir = self.run + "/" + self.bcl_output_dir
 
         for project in self.projects:
@@ -181,8 +184,12 @@ class project(object):
                     print("Skipping %s" % sample)
                     continue
                 
-                if not database:
+                elif not database:
                     database = project
+
+                elif not destination:
+                    print("Skipping %s. No destination specified" % sample)
+                    continue
 
                 sample_dir = bcl_output_dir + "/Project_" + project + "/Sample_" + sample
 
@@ -190,7 +197,7 @@ class project(object):
                 subprocess.call(["mkdir","annoj"])
                 os.chrdir("annoj")
 
-                local2mysql("../bowtie2.out.sam",destination,database,sample)
+                local2mysql("../bowtie.out.sam",destination,database,sample,mysql_user=mysql_user,mysql_password=mysql_password)
 
     # --------------- Private Methods
     # These are subroutines that the public methods call
@@ -464,6 +471,9 @@ if __name__=="__main__":
     # print("Running ConfigureBclToFastq")
     # p.runConfigureBclToFastq()
 
-    # Don't forget to turn back on call to converSampleSheet
+    # Don't forget to turn back on call to convertSampleSheet
     p.grabUndetermined()
+
+    # p.bowtieProjects()
+    # p.import2annojsimple
     

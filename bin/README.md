@@ -22,5 +22,30 @@ $ python <module to test>.py
 		If there are .gz files in directory they are uncompressed. 
 
 		NOTE: As of right now only the R1 reads in a directory are bowtied
-		      If 
+		      If the FASTQ's do not contain "R1" or "R2" then these files are bowtied
+		
+		Stats and SAM file are written to current working directory. 
 		"""
+
+### emailnotifications.py
+
+	def __init__(self):
+		"""
+		Username, password, and admins are hardcoded. They can be changed here.
+		"""
+
+	def send_message(self,TO,SUBJECT,TEXT):
+		"""
+		TO      -> List of strings that contain one email per index.
+		SUBJECT -> String
+		TEXT    -> String
+		"""
+	def
+
+### project2bowtie2annoj.py
+
+### getAlignedSequence.py 
+
+### guts.py
+
+### import2annojsimple.py

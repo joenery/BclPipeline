@@ -43,25 +43,30 @@ def bowtie_folder(folder,options="--local -p 4",bowtie_shell_call="bowtie2",inde
 
         subprocess.call(gunzip)
 
-    # Getting Fastq's and prepping command
+    # Getting Fastq's and prepping 
 
-    fastqs = [folder + x for x in os.listdir(folder) if ".fastq" in x and "R1" in x]
+    # Make Sure to add bowtie output logs that contain
+    # what the call was to bowtie etc
+
+    # fastqs = [folder + x for x in os.listdir(folder) if ".fastq" in x and "R1" in x]
+    fastqs = []
 
     if len(fastqs) == 0:
         print("No fastq files found in %s." % folder)
 
-        fastqs = [x for x in os.listdir(folder) if ".fastq" in x and "_R1_" not in x and "_R2_" not in x]
+        fastqs = [x for x in os.listdir(folder) if ".fastq" in x and "R1_" not in x and "R2_" not in x]
 
         if len(fastqs) == 0:
             print("No fastqs in folder!")
             return
 
     # Prepping Command
-    command = [bowtie_shell_call,options,indexes_folder+indexes_genome,",".join(fastqs),"1> bowtie.out.sam 2> bowtie.stats"]
+    command = [bowtie_shell_call,options,indexes_folder+ "/" +indexes_genome,",".join(fastqs),"1> bowtie.out.sam 2> bowtie.stats"]
 
     print("Bowtie-ing %s" % folder)
+    print " ".join(command),os.getcwd()
     system_call(command,"Died at Bowtie2 step")
     print("Finished Bowtie-ing %s" % folder)
 
 if __name__ == "__main__":
-    print("Testing...")å
+    print("Testing...")

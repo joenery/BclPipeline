@@ -8,7 +8,6 @@ import re
 from bowtie import bowtie_folder
 from import2annojsimple import local2mysql
 
-
 def system_call(command,err_message):
     """
     A wrapper for subprocess.call()
@@ -309,7 +308,8 @@ class project(object):
         # 1) If there are gz files. Gunzip them.
         # 2) Create a list of R1 and R2 files. sort them and paste each file together
         # 3) If those steps have been done. Loop through each file and pull out reads
-        #    corresponding to the barcodes for those samples. save them at the Top of the Project folder.
+        #    corresponding to the barcodes for those samples. Save the output to this in the Project -> Sample
+        #    folder structure.
 
         print("Preparing the Undetermined_indices folder in %s" % (self.run + "/" + self.bcl_output_dir))
 
@@ -332,6 +332,7 @@ class project(object):
             os.chdir(lane_path)
             print("Now in %s" % os.getcwd())
 
+            # If there are gz_files...gunzip them!
             gz_files = [x for x in os.listdir(os.getcwd()) if ".gz" in x]
 
             if len(gz_files) != 0:
@@ -339,7 +340,6 @@ class project(object):
                 subprocess.call(gunzip)
 
             # Get All the R1's and R2's
-
             R1 = [x for x in os.listdir(os.getcwd()) if "_R1_" in x]
             R2 = [x for x in os.listdir(os.getcwd()) if "_R2_" in x]
 
@@ -348,7 +348,8 @@ class project(object):
 
             R1andR2 = [(x,y) for x,y in zip(R1,R2)]
 
-            # Check to see if the R1R2's are out there.
+            # Since this step takes for ever, check to make sure
+            # if this has already been done. If not do it.
             combined_R1andR2_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x]
 
             if len(combined_R1andR2_files) == 0:
@@ -385,9 +386,13 @@ class project(object):
                 # With sample make a folder in the Project folder called Sample_sample
                 # Open an output file in there.
                 # for each Fastq in the R1 R2 fastq's
-                # if the barcodes match spit that out to the
+                # if the barcodes match spit that out to the output file
                 make_sample_dir = ["mkdir",self.run + "/" + self.bcl_output_dir + "/Project_" + project + "/Sample_" + sample_name]
                 subprocess.call(make_sample_dir)
+
+
+                # Writing the output to be in the run -> Project -> Sample format
+                # That way the Bowtie and Import2Annoj steps don't have to be modified
 
                 with open(self.run + "/" + self.bcl_output_dir + "/Project_" + project + "/Sample_" + sample_name + "/lane" + sample_lane + "_" + \
                           sample_name + ".fastq","w") as output_file:
@@ -408,11 +413,12 @@ class project(object):
                                     sequence1 = sequences[0]
                                     sequence2 = sequences[1]
 
+                                    # Possible bug here. pull out the beginning part of sequence
                                     sequence_barcode1 = sequence1[:barcode1_length]
-                                    sequence_barcode2 = sequence2[-barcode2_length:]
+                                    sequence_barcode2 = sequence2[:barcode2_length]
 
                                 elif i % 4 == 2:
-                                    qual1     = line.strip()
+                                    qual1 = line.strip()
 
                                 elif i % 4 == 3:
                                     qual2 = line.strip()
@@ -423,10 +429,12 @@ class project(object):
                                         # Removing Barcodes
                                         output_file.write(sequence1[barcode1_length:].strip() + "\n")
 
+                                        # Since the barcodes are removed the Quality information needs to
+                                        # be truncated too!
                                         output_file.write(qual1.split()[0].strip() + "\n" )
-                                        output_file.write(qual2.split()[0].strip() + "\n")
+                                        output_file.write(qual2.split()[0].strip()[barcode1_length:] + "\n")
 
-            # Change Directory back to Top if Undetermined
+            # Change Directory back to Top of Undetermined
             os.chdir(undetermined_indices_path)
 
     def checkProjectFolders(self):
@@ -445,7 +453,6 @@ class project(object):
                 # That project Folder Exists and we don't have to create it
                 continue
 
-
 if __name__=="__main__":
     print("Testing...")
 
@@ -459,3 +466,4 @@ if __name__=="__main__":
 
     # Don't forget to turn back on call to converSampleSheet
     p.grabUndetermined()
+    

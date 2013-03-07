@@ -45,12 +45,18 @@ def bowtie_folder(folder,options="--local -p 4",bowtie_shell_call="bowtie2",inde
 
     # Getting Fastq's and prepping command
 
-    fastqs = [folder + x for x in os.listdir(folder) if os.path.splitext(x)[1] == ".fastq"]
+    fastqs = [folder + x for x in os.listdir(folder) if ".fastq" in x and "R1" in x]
 
     if len(fastqs) == 0:
         print("No fastq files found in %s." % folder)
-        return
 
+        fastqs = [x for x in os.listdir(folder) if ".fastq" in x and "_R1_" not in x and "_R2_" not in x]
+
+        if len(fastqs) == 0:
+            print("No fastqs in folder!")
+            return
+
+    # Prepping Command
     command = [bowtie_shell_call,options,indexes_folder+indexes_genome,",".join(fastqs),"1> bowtie.out.sam 2> bowtie.stats"]
 
     print("Bowtie-ing %s" % folder)
@@ -58,6 +64,4 @@ def bowtie_folder(folder,options="--local -p 4",bowtie_shell_call="bowtie2",inde
     print("Finished Bowtie-ing %s" % folder)
 
 if __name__ == "__main__":
-    print("Testing...")
-
-    bowtie_folder(folder="/mnt/thumper-e1/home/jfeeneysd/130108_JONAS_2137_AD16YKACXX/Unaligned_Anna/Project_DAP/Sample_ANAC029/",indexes_genome="tair10")
+    print("Testing...")å

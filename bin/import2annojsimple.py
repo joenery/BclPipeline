@@ -60,6 +60,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
                 sys.exit(1)
 
     # --------------------- Parsing Sam File Aligns in to respective Chromosome Files ------ #
+    print("Parsing Sam file for Alignments")
     with open(sam,"r") as sam_file:
         
         for i,line in enumerate(sam_file):
@@ -124,6 +125,10 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             command = "cat %s | sort -k4,4n -k3,3 > x; mv x %s" % ( str(i) + ".aj" , str(i) + ".aj" )
             subprocess.call(command,shell = True)
 
+        print("Joining Chromosomes in to all.aj")
+        join_chromosomes_command = "cat *.aj > all.aj"
+        subprocess.call(join_chromosomes_command,shell=True)
+
         
         # ------------------------ MySQL Upload --------------------------- #
         
@@ -142,6 +147,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             sys.exit(1)
 
         # With connection create an object to send queries
+        print("Connected. Uploading File")
         with db:
             cur   = db.cursor()
 
@@ -159,6 +165,18 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
 
                 query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.reads_%s_%d""" % (os.path.realpath(chrom_file),database,tablename,i)
                 cur.execute(query)
+
+            # Once Chlamy is done use this method!
+            # chrom_file = "all.aj"
+
+            # query = "drop table if exists %s.reads_%s_%d" % (database,tablename,i)
+            # cur.execute(query)
+
+            # query = "create table %s.reads_%s_%d(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,i)
+            # cur.execute(query)
+
+            # query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.%s""" % (os.path.realpath(chrom_file),database,tablename)
+            cur.execute(query)
 
             cur.close()
 

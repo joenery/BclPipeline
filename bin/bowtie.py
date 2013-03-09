@@ -18,7 +18,7 @@ def system_call(command,err_message):
         print("".join(["\n",err_message,"\n","Terminating Script"]))
         sys.exit(1)
 
-def bowtie_folder(folder,options="--local -p 4",bowtie_shell_call="bowtie2",indexes_folder="/home/seq/bin/bowtie2/INDEXES/",indexes_genome="tair10"):
+def bowtie_folder(folder,options="--local -p 8",bowtie_shell_call="bowtie2",indexes_folder="/home/seq/bin/bowtie2/INDEXES/",indexes_genome="tair10"):
     """
     This function takes in a folder and creates a list of fastq files within that folder. If the folder has no fastq's the function returns None.
     """

@@ -357,7 +357,7 @@ class project(object):
 
             # Since this step takes for ever, check to make sure
             # if this has already been done. If not do it.
-            combined_R1andR2_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x]
+            combined_R1andR2_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x and ".fastq" in x]
 
             if len(combined_R1andR2_files) == 0:
                 print("Combining R1's and R2's in lane %s" % (lane))
@@ -373,12 +373,13 @@ class project(object):
                     paste_command = " ".join(paste_command)
                     subprocess.call(paste_command,shell=True)
 
-                combined_R1andR2_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x]
+                combined_R1andR2_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x and ".fastq" in x]
 
             else:
                 print("R1 and R2's already combined. Skipping step")
 
             # Start going through samples and pulling them out
+            print("Pulling Out Samples")
             for sample in lanes[lane]:
 
                 project     = sample["project"]
@@ -420,7 +421,7 @@ class project(object):
                                     sequence1 = sequences[0]
                                     sequence2 = sequences[1]
 
-                                    # Possible bug here. pull out the beginning part of sequence
+                                    # Pull out the beginning part of sequence
                                     sequence_barcode1 = sequence1[:barcode1_length]
                                     sequence_barcode2 = sequence2[:barcode2_length]
 
@@ -463,7 +464,7 @@ class project(object):
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path="/mnt/thumper-e4/illumina_runs/130213_HAL_1222_AC112TACXX/",sample_sheet="SampleSheet_130213_HAL_1222_AC112TACXX.csv",bcl_output_dir="ChlamyTest")
+    p = project(run_path="/mnt/thumper-e4/illumina_runs/130213_HAL_1222_AC112TACXX/",sample_sheet="SampleSheet_130213_HAL_1222_AC112TACXX_FILTER.csv",bcl_output_dir="ChlamyTest")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()

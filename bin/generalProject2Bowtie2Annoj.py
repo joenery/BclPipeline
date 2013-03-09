@@ -30,40 +30,45 @@ if __name__=="__main__":
     signal.signal(signal.SIGPIPE,signal.SIG_DFL)
 
     # Configure Arguement Parser
-    parser = MyParser(description = "Given a Project Folder this script will Bowtie check each folder for Fastq's.\
+    parser = MyParser(description = "Given a Folder this script will Bowtie check each subfolder for Fastq's.\
                                      If there are Fastq's then Bowtie2 will be performed.\
-                                     Additionally, a fetcher and Track Definition are created. ")
+                                     Additionally, if Annoj is wanted then the SAM file will be split in to \
+                                     chromosomes and then uploaded in to the MySQL database as well as creating \
+                                     a fetcher and track definition in the corresponding directory.")
 
-    parser.add_argument("-p","--project", help = "Absolute path to a Project Folder")
-    parser.add_argument("-ho","--host",help = "This is the mysql host you'd like to put your data on. Eg - thumper-e3, thumper-e4, etc...")
-    parser.add_argument("-db","--database",help = "What is the name of the database you'd like to put your data in. If it does not exist it will be created for you.")
-    parser.add_argument("-i","--bowtie-indexes",help="Path to the Bowtie Indexes.",default="/home/seq/bin/bowtie2/INDEXES/tair10")
-    parser.add_argument("-o","--bowtie-only",help="Only Bowtie will be performed",action="store_true")
+    mandatory = parser.add_argument_group("MANDATORY")
+    advanced  = parser.add_argument_group("ADVANCED")
+
+    mandatory.add_argument("-p","--project", help = "Absolute path to a Project Folder")
+    mandatory.add_argument("-ho","--host",help = "This is the mysql host you'd like to put your data on. Eg - thumper-e3, thumper-e4, etc...")
+    mandatory.add_argument("-db","--database",help = "What is the name of the database you'd like to put your data in. If it does not exist it will be created for you.")
+
+    advanced.add_argument("-bt","--bowtie-call",help="Path to / or call to shell for bowtie DEFAULT: bowtie2",default="bowtie2")
+    advanced.add_argument("-i","--bowtie-indexes",help="Path to the reference genome indexes for Bowtie.",default="/home/seq/bin/bowtie2/INDEXES/tair10")
+    advanced.add_argument("-o","--bowtie-only",help="Only Bowtie will be performed",action="store_true")
+    advanced.add_argument("-u","--mysql-user",help="MySQL user name. DEFAULT: mysql",default="mysql")
+    advanced.add_argument("-pw","--mysql-password",help="MySQL user password. DEFAULT: rekce",default="rekce")
 
     # Get Command Line Options
     command_line_options = vars(parser.parse_args())
 
-    database   = command_line_options["database"]
-    host       = command_line_options["host"]
-    project    = command_line_options["project"]
+    database       = command_line_options["database"]
+    host           = command_line_options["host"]
+    project        = command_line_options["project"]
+    path_to_bowtie = command_line_options["bowtie_call"]
     bowtie_indexes = command_line_options["bowtie_indexes"]
-    bowtie_only = command_line_options["bowtie_only"]
+    bowtie_only    = command_line_options["bowtie_only"]
+    mysql_user     = command_line_options["mysql_user"]
+    mysql_password = command_line_options["mysql_password"]
 
 
     # -------------------- BOWTIE ARGUMENTS --------------------- #
 
-    path_to_bowtie = "bowtie2"
     bowtie_options = "--local -p 8"
     indexes_genome = os.path.basename(bowtie_indexes)
     indexes_folder = os.path.split(bowtie_indexes)[0]
 
-    # --------------------- MySQL USER and PASSWORD -------------- #
-
-    mysql_user     = "mysql"
-    mysql_password = "rekce"
-
-    # ------------------------------------------------------------ #
-
+    # --------------------- Checks! ----------------------- #
     if not database or not host or not project:
         parser.print_help()
         sys.exit(1)
@@ -100,7 +105,7 @@ if __name__=="__main__":
             os.chdir(current_folder + "/annoj")
 
             # We've moved one folder down and the path to the file reflects this
-            local2mysql("../bowtie2.out.sam",host,database,tablename,mysql_user,mysql_password)
+            local2mysql("../bowtie.out.sam",host,database,tablename,mysql_user,mysql_password)
 
 
 # Deprocated

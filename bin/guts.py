@@ -211,7 +211,7 @@ class project(object):
                 subprocess.call(["mkdir","annoj"])
                 os.chrdir("annoj")
 
-                local2mysql("../bowtie.out.sam",destination,database,sample,mysql_user=mysql_user,mysql_password=mysql_password)
+                local2mysql("../bowtie.R1.sam",destination,database,sample,mysql_user=mysql_user,mysql_password=mysql_password)
 
     def adminEmailBlast(self,subject,text):
         """

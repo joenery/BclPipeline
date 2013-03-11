@@ -1,6 +1,15 @@
+#!/usr/bin/env python
+
 import os
 import sys
 import subprocess
+import argparse
+
+class MyParser(argparse.ArgumentParser):
+    def error(self,message):
+        sys.stderr.write("error: %s\n" % message)
+        self.print_help()
+        sys.exit(2)
 
 def system_call(command,err_message):
     """
@@ -24,8 +33,8 @@ def bowtie_folder(folder,options="--local -p 8",bowtie_shell_call="bowtie2",inde
     """
     
     # Is folder formatted properly?
-    if folder[-1] != "/":
-        folder = folder + "/"
+    if folder[-1] == "/":
+        folder = folder[-1]
 
     # Does the INDEXES folder have the specified genome?
     indexes_check = [x for x in os.listdir(indexes_folder) if indexes_genome in x]
@@ -48,25 +57,34 @@ def bowtie_folder(folder,options="--local -p 8",bowtie_shell_call="bowtie2",inde
     # Make Sure to add bowtie output logs that contain
     # what the call was to bowtie etc
 
-    # fastqs = [folder + x for x in os.listdir(folder) if ".fastq" in x and "R1" in x]
-    fastqs = []
+    # check for Pair end reads
+    fastqs_R1 = [folder + "/" + x for x in os.listdir(folder) if "R1" in x and ".fastq" in x]
+    fastqs_R2 = [folder + "/" + x for x in os.listdir(folder) if "R2" in x and ".fastq" in x]
 
     if len(fastqs) == 0:
-        print("No fastq files found in %s." % folder)
 
-        fastqs = [x for x in os.listdir(folder) if ".fastq" in x and "R1_" not in x and "R2_" not in x]
+        fastqs_R1 = [x for x in os.listdir(folder) if ".fastq" in x and "R1" not in x and "R2" not in x]
 
-        if len(fastqs) == 0:
+        if len(fastqs_R1) == 0:
             print("No fastqs in folder!")
             return
 
     # Prepping Command
-    command = [bowtie_shell_call,options,indexes_folder+ "/" +indexes_genome,",".join(fastqs),"1> bowtie.out.sam 2> bowtie.stats"]
+    command_R1 = [bowtie_shell_call,options,indexes_folder+ "/" + indexes_genome,",".join(fastqs_R1),"1> bowtie.R1.sam 2> bowtie.stats"]
+    command_R2 = [bowtie_shell_call,options,indexes_folder+ "/" + indexes_genome,",".join(fastqs_R2),"1> bowtie.R2.sam 2> bowtie.stats"]
 
     print("Bowtie-ing %s" % folder)
     print " ".join(command),os.getcwd()
-    system_call(command,"Died at Bowtie2 step")
+
+    if len(fastqs_R2) == 0:
+        system_call(command,"Died at Bowtie2 step")
+
+    else:
+        system_call(command,"Died at Bowtie2 R1 step")
+        system_call(command,"Died at Bowtie2 R2 step")
+
     print("Finished Bowtie-ing %s" % folder)
 
 if __name__ == "__main__":
-    print("Testing...")
+    parser = MyParser(description="Given a folder and optionally a configuration file Bowtie will be performed on all\
+                                   the relative files in that folder")

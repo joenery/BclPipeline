@@ -7,8 +7,9 @@ import re
 # My modules
 from bowtie import bowtie_folder
 from import2annojsimple import local2mysql
+from emailnotifications  import notifications
 
-def system_call(command,err_message):
+def system_call(command,err_message,admin_message=False):
     """
     A wrapper for subprocess.call()
 
@@ -20,8 +21,17 @@ def system_call(command,err_message):
 
     val = subprocess.call(command)
 
-    if val != 0:
+    if val != 0 and admin_message == False:
         print("".join(["\n",err_message,"\n","Terminating Script"]))
+        sys.exit(1)
+
+    elif val != 0 and admin_message == True:
+        print("".join(["\n",err_message,"\n","Terminating Script"]))
+
+        subject = "Pipeline failed on %s" % (os.path.basename(self.run))
+        text    = "Error Message: %s\n\nPath to run: %s" % (err_message,self.run)
+
+        self.adminEmailBlast(SUBJECT=subject,TEXT=text)
         sys.exit(1)
 
 class project(object):
@@ -115,15 +125,19 @@ class project(object):
                 # Add to dictionary
                 projects[project][sample_name] = {"genome":genome,"destination_server":destination,
                                                   "database":database,"barcode1":barcode1,"barcode2":barcode2,
-                                                  "lane":lane,"index":index,"project":project,"sample_name":sample_name}
+                                                  "lane":lane,"index":index,"project":project,"sample_name":sample_name,
+                                                  "owner_email":owner_email}
 
         self.projects = projects
 
-        # TURN BACK ON AFTER TESTING GRAB UNDETERMINED
-        # if samples_with_no_indexes:
+        # Parse Emails
+        self.getEmailsAndProjects()
 
-        #     # Private Method Call
-        #     self.convertSampleSheet()
+        # TURN BACK ON AFTER TESTING GRAB UNDETERMINED
+        if samples_with_no_indexes:
+
+            # Private Method Call
+            self.convertSampleSheet()
 
     def runConfigureBclToFastq(self):
 
@@ -140,14 +154,14 @@ class project(object):
         os.chdir(self.run + "/" + self.bcl_output_dir)
         print("Running make command in %s" %(os.getcwd()))
 
-        system_call(["make","-j","12"],"Make Failed")
+        system_call(["make","-j","8"],"Make Failed",admin_message=True)
 
         # You can Rip this out when we move to the all index system.
         # If there are Samples With Undetermined Indicies
         # Filter and move the Samples in to the appropriate Project
 
-        # if self.undetermined:
-        #     self.grabUndetermined()
+        if self.undetermined:
+            self.grabUndetermined()
 
     def bowtieProjects(self):
 
@@ -199,6 +213,53 @@ class project(object):
 
                 local2mysql("../bowtie.out.sam",destination,database,sample,mysql_user=mysql_user,mysql_password=mysql_password)
 
+    def adminEmailBlast(self,subject,text):
+        """
+        """
+        try: 
+            self.notifications
+        except AttributeError:
+            self.notifications = notifications()
+        
+        self.notifications.admin_message(subject,text)
+
+    def bclStartEmailBlast(self):
+        """
+        """
+        try: 
+            self.notifications
+        except AttributeError:
+            self.notifications = notifications()
+
+        for email in self.emails_and_projects:
+
+            subject = "Bcl Analysis Has Started for %s" % (os.path.basename(self.run))
+
+            # I'm sorry this is a heinously long string
+            # The Text would not format correctly if not done this way :-)
+            message = """Just a friendly reminder from GAL-E to let you know that the following run:\n\n%s has started it's Bcl Analysis.\n\nI'll send you an email with the path(s) to your project(s) on the server when it's done.\n""" % (os.path.basename(self.run))
+
+            # API Note: send_message expects a list of email addresses.
+
+            self.notifications.send_message(TO=[email],SUBJECT=subject,TEXT=message)
+
+    def bclCompleteEmailBlast(self):
+
+        try: 
+            self.notifications
+        except AttributeError:
+            self.notifications = notifications()
+
+        for email in self.emails_and_projects:
+
+            subject = "Analysis Complete for %s!" % (os.path.basename(self.run))
+
+            projects = [self.run + "/" + self.bcl_output_dir + "/" + project for project in self.emails_and_projects[email].keys()]
+
+            message = "%s has completed its analysis!\n\nHere are the Paths to your Projects:\n\n%s" % (os.path.basename(self.run),"\n".join(projects))
+
+            self.notifications.send_message(TO=[email],SUBJECT=subject,TEXT=message)
+
     # --------------- Private Methods
     # These are subroutines that the public methods call
     # Modify here at your own risk
@@ -207,9 +268,19 @@ class project(object):
     def parseBowtieAndAnnojOptions(bowtie_and_annoj_options):
 
         options = bowtie_and_annoj_options.split(";")
-        genome      = options[0]
-        destination = options[1]
-        database    = options[2]
+        try:
+            genome      = options[0]
+            destination = options[1]
+            database    = options[2]
+
+        except IndexError:
+            """
+            If the Code hits here it is very probable that the code is handmade, or at least
+            some of it is.
+            """
+            genome      = ""
+            destination = ""
+            database    = ""
 
         try:
             barcode1 = options[3]
@@ -225,8 +296,9 @@ class project(object):
         return {"genome":genome, "destination":destination,"database":database,"barcode1":barcode1,"barcode2":barcode2}
 
     def convertSampleSheet(self,number_of_lanes=8):
-        print("Found Samples without Indexes. Modifying SampleSheet.csv")
-        print("Saving unmodified SampleSheet as .csv.old")
+        print("Found Samples without Indexes")
+        print("Saving new SampleSheet as _tmp.csv")
+        print("Old SampleSheet will be unmodified")
 
         all_lanes = {str(x):[] for x in range(1,number_of_lanes + 1)}
 
@@ -248,10 +320,12 @@ class project(object):
         keys = all_lanes.keys()
         keys.sort()
 
-        # Call the old sample Sheet something else
-        subprocess.call(["mv",self.sample_sheet,self.sample_sheet + ".old"])
+        # New Sample sheet
+        sample_sheet_no_extension = os.path.splitext(os.path.basename(self.sample_sheet))[0]
+        sample_sheet_no_extension += "_tmp.csv"
 
-        with open(self.sample_sheet,"w") as output_file:
+
+        with open(sample_sheet_no_extension,"w") as output_file:
 
             output_file.write(header)
 
@@ -282,8 +356,10 @@ class project(object):
                     first_sample[-1] = "Undetermined_indices\n"
                     output_file.write(",".join(first_sample))
 
-
+        self.sample_sheet = os.path.abspath(sample_sheet_no_extension)
         self.undetermined = True
+
+        print("Will now use %s as SampleSheet" % sample_sheet_no_extension)
 
     def grabUndetermined(self):
         """
@@ -461,10 +537,36 @@ class project(object):
                 # That project Folder Exists and we don't have to create it
                 continue
 
+    def getEmailsAndProjects(self):
+        """
+        Go through projects and create a hash where Keys are Emails and
+        Values are the projects associated with that email
+        """
+
+        emails_and_projects = defaultdict(dict)
+
+        for project in self.projects:
+
+            for sample in self.projects[project]:
+                email_address = self.projects[project][sample]["owner_email"]
+
+                if project not in emails_and_projects[email_address]:
+                    emails_and_projects[email_address][project] = [sample]
+
+                else:
+                    emails_and_projects[email_address][project].append(sample)
+
+        self.emails_and_projects = emails_and_projects
+
+        try: 
+            self.notifications
+        except AttributeError:
+            self.notifications = notifications()
+
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path="/mnt/thumper-e4/illumina_runs/130213_HAL_1222_AC112TACXX/",sample_sheet="SampleSheet_130213_HAL_1222_AC112TACXX_FILTER.csv",bcl_output_dir="ChlamyTest")
+    p = project()
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()

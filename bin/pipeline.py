@@ -75,8 +75,7 @@ if __name__=="__main__":
 
     optional.add_argument("-nw","--no-watch",help="If the run has already completed and you would like to just run Bcl etc then turn this flag on. DEFAULT: off",\
                          action="store_true")
-    optional.add_argument("-n","--notifications",help="Turn notifications on. An email blast will be sent to the ADMIN and the OPERATORS when BCL has started and when\
-                                                     it is complete. DEFAULT: On",
+    optional.add_argument("-nn","--no-notifications",help="Turn notifications off. DEFAULT: notifications are on",
                                                      action="store_false") 
 
     advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet")
@@ -87,12 +86,12 @@ if __name__=="__main__":
     
     command_line_options = vars(parser.parse_args())
 
-    run            = command_line_options["run"]
-    no_watch       = command_line_options["no_watch"]
-    notifications  = command_line_options["notifications"]
-    sample_sheet   = command_line_options["sample_sheet"]
-    bcl_output_dir = command_line_options["output_dir"]
-    admin_only     = command_line_options["admin_only"]
+    run              = command_line_options["run"]
+    no_watch         = command_line_options["no_watch"]
+    no_notifications = command_line_options["no_notifications"]
+    sample_sheet     = command_line_options["sample_sheet"]
+    bcl_output_dir   = command_line_options["output_dir"]
+    admin_only       = command_line_options["admin_only"]
 
     #-------------------------- Checking the options! ------------------------------------ #
     if not run:
@@ -137,13 +136,13 @@ if __name__=="__main__":
 
         print("Daemon is now running")
 
-        if notifications:
+        if not no_notifications:
             p.adminEmailBlast("Daemon running for %s" % (run),"")
 
         if no_watch == False:
                 watchRunFolder(run,1800)
 
-        if notifications:
+        if not no_notifications:
             p.adminEmailBlast("Bcl Started for %s" % (run),"")
 
             if not admin_only:
@@ -160,7 +159,7 @@ if __name__=="__main__":
         p.import2annojsimple()
 
         # Alert the Masses!
-        if notifications:
+        if not no_notifications:
             p.adminEmailBlas("Bcl Finished for %s" % (run),"")
 
             if not admin_only:

@@ -1,4 +1,4 @@
-#!/usr/bin/env python -u
+#!/usr/bin/env python
 
 import os
 import sys
@@ -373,8 +373,9 @@ def convert_and_upload_sam2_annoj(run,annoj_samples,bcl_output_dir):
                     raw_sequence    = row[9]
 
                     # Assume there is only one or at most one significant sequence in the read
-                    parsed_sequence = getAlignedSequence(raw_sequence,snip_string)
-                    sequence        = parsed_sequence[0]
+                    # parsed_sequence = getAlignedSequence(raw_sequence,snip_string)
+                    # sequence        = parsed_sequence[0]
+                    sequence = raw_sequence
                     
                     # Skip unmapped reads 
                     if chromosome in ["*","chloroplast","mitochondira","ChrC","ChrM"] :

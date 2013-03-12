@@ -419,8 +419,9 @@ class project(object):
             gz_files = [x for x in os.listdir(os.getcwd()) if ".gz" in x]
 
             if len(gz_files) != 0:
-                gunzip = ["gunzip","*"]
-                subprocess.call(gunzip)
+                print("Found gz files. Uncompressing them.")
+                gunzip = "gunzip *.gz"
+                subprocess.call(gunzip,shell=True)
 
             # Get All the R1's and R2's
             R1 = [x for x in os.listdir(os.getcwd()) if "_R1_" in x]
@@ -566,17 +567,10 @@ class project(object):
 if __name__=="__main__":
     print("Testing...")
 
-    p = project()
+    p = project(run_path="/mnt/thumper-e4/illumina_runs/130213_HAL_1222_AC112TACXX",sample_sheet="SampleSheet_Chlamy_Test.csv",bcl_output_dir="JoePipeTest")
+
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-
-    # print("Running ConfigureBclToFastq")
-    # p.runConfigureBclToFastq()
-
     # Don't forget to turn back on call to convertSampleSheet
     p.grabUndetermined()
-
-    # p.bowtieProjects()
-    # p.import2annojsimple
-    

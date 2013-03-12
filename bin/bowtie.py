@@ -85,6 +85,88 @@ def bowtie_folder(folder,options="--local -p 8",bowtie_shell_call="bowtie2",inde
 
     print("Finished Bowtie-ing %s" % folder)
 
+def parseConfigFile(config_file):
+    """
+    Line1: Bowtie call or path to bowtie exceutable. I'll check if the call is either in your bash or if the exceutable exists
+    Line2: Options you would like to give to Bowtie.
+    Line3: Path to the bowtie index you would like to use. Formatted just like you would give to bowtie
+    """
+    warned_user = False
+
+    with open(config_file,"r") as bowtie_config:
+
+        for i,line in enumerate(bowtie_config):
+
+            if i == 0:
+                bowtie_shell_call = line.strip()
+
+            elif i == 1:
+                options = line.strip()
+
+            elif i == 2:
+                bowtie_indexes = line.strip()
+
+            if i > 2 and warned_user == False:
+                print("\nWoah. Your config file is more than three lines.\n It might not be the right file and bowtie will get angry with the options I give it!\n")
+
+                warned_user = True
+                continue
+
+            else:
+                pass
+
+    # Check the bowtie shell call
+    if not os.path.isfile(bowtie_shell_call):
+        pass
+
+    # Check the INDEXES folder
+    indexes_genome = os.path.basename(bowtie_indexes)
+    indexes_folder = os.path.split(bowtie_indexes)[0]
+
+    if not indexes_folder:
+        print("\nI couldn't find the INDEXES folder you specfied!\n")
+        sys.exit(1)
+
+    genomes = [x for x in os.listdir(indexes_folder) if indexes_genome in x]
+    
+    if len(genomes) < 1:
+        print("\nCould not find the genome you specified in the Indexes folder!\n")
+        sys.exit(1) 
+
+    return {"bowtie_shell_call":bowtie_shell_call,"indexes_genome":indexes_genome,"indexes_folder":indexes_folder,"options":options}
+
 if __name__ == "__main__":
     parser = MyParser(description="Given a folder and optionally a configuration file Bowtie will be performed on all\
                                    the relative files in that folder")
+
+    mandatory = parser.add_argument_group("MANDATORY")
+    advanced  = parser.add_argument_group("ADVANCED")
+
+    mandatory.add_argument("-f","--folder",help="Absolute path to a folder that contains Fastq files that you would like to Bowtie")
+
+    advanced.add_argument("-c","--config-file",help="Absolute path to a config file that you would like to use for your Bowtie call and options. DEFAULT: None",\
+                          default=None)
+
+    # -------- Parse Options
+    command_line_options = vars(parser.parse_args())
+
+    folder      = command_line_options["folder"]
+    config_file = command_line_options["config_file"] 
+
+    # -------- Validate Options
+
+    if not folder:
+        parser.print_help()
+        sys.exit(1)
+
+    if not os.path.isdir(folder):
+        print("\nThe Folder you gave doesn't exist!\n")
+        sys.exit(1)
+
+    if config_file and (not os.path.isfile(os.getcwd() + "/" + config_file) or not os.path.isfile(config_file)):
+        print("\nThe config file you gave doesn't exist!\n")
+        sys.exit(1)
+
+    # -------- Set up the Options for bowtie_folder
+    if config_file:
+        parsed_options = parseConfigFile(config_file)

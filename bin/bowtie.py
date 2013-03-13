@@ -27,11 +27,13 @@ def system_call(command,err_message):
         print("".join(["\n",err_message,"\n","Terminating Script"]))
         sys.exit(1)
 
-def bowtie_folder(folder,options="--local -p 8",bowtie_shell_call="bowtie2",indexes_folder="/home/seq/bin/bowtie2/INDEXES/",indexes_genome="tair10"):
+def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",indexes_folder="/home/seq/bin/bowtie2/INDEXES/",indexes_genome="tair10"):
     """
     This function takes in a folder and creates a list of fastq files within that folder. If the folder has no fastq's the function returns None.
     """
-    
+    # Change in to Sample Folder
+    os.chdir(folder)
+
     # Is folder formatted properly?
     if folder[-1] == "/":
         folder = folder[-1]
@@ -61,7 +63,7 @@ def bowtie_folder(folder,options="--local -p 8",bowtie_shell_call="bowtie2",inde
     fastqs_R1 = [folder + "/" + x for x in os.listdir(folder) if "R1" in x and ".fastq" in x]
     fastqs_R2 = [folder + "/" + x for x in os.listdir(folder) if "R2" in x and ".fastq" in x]
 
-    if len(fastqs) == 0:
+    if len(fastqs_R1) == 0:
 
         fastqs_R1 = [x for x in os.listdir(folder) if ".fastq" in x and "R1" not in x and "R2" not in x]
 
@@ -70,18 +72,21 @@ def bowtie_folder(folder,options="--local -p 8",bowtie_shell_call="bowtie2",inde
             return
 
     # Prepping Command
-    command_R1 = [bowtie_shell_call,options,indexes_folder+ "/" + indexes_genome,",".join(fastqs_R1),"1> bowtie.R1.sam 2> bowtie.stats"]
-    command_R2 = [bowtie_shell_call,options,indexes_folder+ "/" + indexes_genome,",".join(fastqs_R2),"1> bowtie.R2.sam 2> bowtie.stats"]
+    command_R1 = [bowtie_shell_call,options,indexes_folder + indexes_genome,",".join(fastqs_R1),"1> bowtie.R1.sam 2> bowtie.stats"]
+    command_R2 = [bowtie_shell_call,options,indexes_folder + indexes_genome,",".join(fastqs_R2),"1> bowtie.R2.sam 2> bowtie.stats"]
 
     print("Bowtie-ing %s" % folder)
-    print " ".join(command),os.getcwd()
 
     if len(fastqs_R2) == 0:
-        system_call(command,"Died at Bowtie2 step")
+        print("\t" + " ".join(command_R1))
+        system_call(command_R1,"Died at Bowtie2 step")
 
     else:
-        system_call(command,"Died at Bowtie2 R1 step")
-        system_call(command,"Died at Bowtie2 R2 step")
+        print("\t" + " ".join(command_R1))
+        system_call(command_R1,"Died at Bowtie2 R1 step")
+
+        print("\t" + " ".join(command_R2))
+        system_call(command_R2,"Died at Bowtie2 R2 step")
 
     print("Finished Bowtie-ing %s" % folder)
 

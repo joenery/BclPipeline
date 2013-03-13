@@ -123,7 +123,7 @@ class project(object):
                     genome = "tair10"
 
                 # Add to dictionary
-                projects[project][sample_name] = {"genome":genome,"destination_server":destination,
+                projects[project][sample_name] = {"genome":genome,"destination":destination,
                                                   "database":database,"barcode1":barcode1,"barcode2":barcode2,
                                                   "lane":lane,"index":index,"project":project,"sample_name":sample_name,
                                                   "owner_email":owner_email}
@@ -165,7 +165,7 @@ class project(object):
 
     def bowtieProjects(self):
 
-        output_dir = self.run + "/" + self.output_dir
+        output_dir = self.run + "/" + self.bcl_output_dir
 
         for project in self.projects:
 
@@ -182,6 +182,7 @@ class project(object):
     def importProjects2Annoj(self):
         """
         """
+        print("Starting upload of Samples to MySQL Database(s)")
         mysql_user     = "mysql"
         mysql_password = "rekce"
 
@@ -190,6 +191,7 @@ class project(object):
         for project in self.projects:
 
             for sample in self.projects[project]:
+                print("Working on %s from Project %s" % (sample,project))
 
                 destination = self.projects[project][sample]["destination"]
                 database    = self.projects[project][sample]["database"]
@@ -207,9 +209,9 @@ class project(object):
 
                 sample_dir = bcl_output_dir + "/Project_" + project + "/Sample_" + sample
 
-                os.chrdir(sample_dir)
+                os.chdir(sample_dir)
                 subprocess.call(["mkdir","annoj"])
-                os.chrdir("annoj")
+                os.chdir("annoj")
 
                 local2mysql("../bowtie.R1.sam",destination,database,sample,mysql_user=mysql_user,mysql_password=mysql_password)
 
@@ -468,6 +470,10 @@ class project(object):
                 barcode1_length = len(barcode1)
                 barcode2_length = len(barcode2)
 
+                # If the stuff isn't barcoded. Skip
+                if barcode1_length == 0 or barcode2_length == 0:
+                    continue
+
                 # With sample make a folder in the Project folder called Sample_sample
                 # Open an output file in there.
                 # for each Fastq in the R1 R2 fastq's
@@ -482,6 +488,8 @@ class project(object):
                 with open(self.run + "/" + self.bcl_output_dir + "/Project_" + project + "/Sample_" + sample_name + "/lane" + sample_lane + "_" + \
                           sample_name + ".fastq","w") as output_file:
                     
+
+                    print("\tWorking on %s in lane %s" % (sample_name,sample_lane))
                    # Loop through combined R1and R2 files
                     for r1andr2 in combined_R1andR2_files:
 
@@ -572,5 +580,6 @@ if __name__=="__main__":
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    # Don't forget to turn back on call to convertSampleSheet
-    p.grabUndetermined()
+    # p.grabUndetermined()
+    p.bowtieProjects()
+    p.importProjects2Annoj()

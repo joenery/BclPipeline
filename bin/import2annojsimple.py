@@ -45,7 +45,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
                 passed_first_chromosome_header = True
 
                 # Get chromosome number
-                chromosome = row[1].split(":")[1]
+                chromosome = row[1].split(":")[1].replace("Chr","").replace("chr","")
                 open_files[chromosome]    = open(chromosome + ".aj","w")
                 open_files_id[chromosome] = 0
 
@@ -121,8 +121,8 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
         
         # sort Chromosome files by position and direction
         print("Sorting Chromosomes")
-        for i in range(1,len(open_files) + 1):
-            command = "cat %s | sort -k4,4n -k3,3 > x; mv x %s" % ( str(i) + ".aj" , str(i) + ".aj" )
+        for chrom in open_files:
+            command = "cat %s | sort -k4,4n -k3,3 > x; mv x %s" % ( str(chrom) + ".aj" , str(chrom) + ".aj" )
             subprocess.call(command,shell = True)
 
         print("Joining Chromosomes in to all.aj")
@@ -147,23 +147,23 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             sys.exit(1)
 
         # With connection create an object to send queries
-        print("Connected. Uploading File")
+        print("Connected. Uploading File(s).")
         with db:
             cur   = db.cursor()
 
             query = "create database if not exists %s" % (database)
             cur.execute(query)
 
-            for i in range(1,len(open_files) + 1):
-                chrom_file = str(i) + ".aj"
+            for chrom in open_files:
+                chrom_file = str(chrom) + ".aj"
 
-                query = "drop table if exists %s.reads_%s_%d" % (database,tablename,i)
+                query = "drop table if exists %s.reads_%s_%s" % (database,tablename,chrom)
                 cur.execute(query)
 
-                query = "create table %s.reads_%s_%d(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,i)
+                query = "create table %s.reads_%s_%s(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,chrom)
                 cur.execute(query)
 
-                query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.reads_%s_%d""" % (os.path.realpath(chrom_file),database,tablename,i)
+                query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.reads_%s_%s""" % (os.path.realpath(chrom_file),database,tablename,chrom)
                 cur.execute(query)
 
             # Once Chlamy is done use this method!

@@ -99,11 +99,21 @@ if __name__=="__main__":
 
                 if barcode1 in barcodes_sideA:
                     barcode1_sequence = barcodes_sideA[barcode1]
+                
+                elif len(barcode1) > 0 and barcode1 not in barcodes_sideA:
+                    # If the barcode isn't associated with Ronan's Barcode's file and
+                    # is directly given in the Illumina Adapter Tracker
+                    barcode1_sequence = barcode1
                 else:
                     barcode1_sequence = ""
 
+
                 if barcode2 in barcodes_sideB:
                     barcode2_sequence = barcodes_sideB[barcode2]
+
+                elif len(barcode2) > 0 and barcode2 not in barcodes_sideB:
+                    barcode2_sequence = barcode2
+
                 else:
                     barcode2_sequence = ""
 

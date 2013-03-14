@@ -11,7 +11,7 @@ import subprocess
 
 # My Modules
 from import2annojsimple import local2mysql
-from bowtie import bowtie_folder
+from bowtieSimple import bowtie_folder
 
 class MyParser(argparse.ArgumentParser):
     def error(self,message):

@@ -5,7 +5,7 @@ from collections import defaultdict
 import re
 
 # My modules
-from bowtie import bowtie_folder
+from bowtieSimple import bowtie_folder
 from import2annojsimple import local2mysql
 from emailnotifications  import notifications
 

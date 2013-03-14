@@ -76,7 +76,7 @@ if __name__=="__main__":
     optional.add_argument("-nw","--no-watch",help="If the run has already completed and you would like to just run Bcl etc then turn this flag on. DEFAULT: off",\
                          action="store_true")
     optional.add_argument("-nn","--no-notifications",help="Turn notifications off. DEFAULT: notifications are on",
-                                                     action="store_false") 
+                                                     action="store_true") 
 
     advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet")
     advanced.add_argument("-o","--output-dir",help = "NAME of FOLDER to create at the top of the RUN folder provided. DEFAULT: Unaligned",default="Unaligned") 
@@ -168,3 +168,7 @@ if __name__=="__main__":
         # Clean up
         print("Finished BCL Pipeline :-]")
         run_log.close()
+
+    # # ----- Tests
+    # print no_notifications
+    # print admin_only

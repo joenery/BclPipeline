@@ -327,7 +327,7 @@ class project(object):
         sample_sheet_no_extension += "_tmp.csv"
 
 
-        with open(sample_sheet_no_extension,"w") as output_file:
+        with open(self.basecalls + "/" + sample_sheet_no_extension,"w") as output_file:
 
             output_file.write(header)
 
@@ -365,6 +365,7 @@ class project(object):
 
     def grabUndetermined(self):
         """
+        This code is ugly as sin. Sorry :-(
         """
 
         # Grab all the undetermined indices samples
@@ -413,6 +414,8 @@ class project(object):
             # if there are gz's gunzip them
             # paste together the files and output them with a uniq name 001.fastq.tmp etc
 
+            read_not_pair_end = False
+
             lane_path = os.getcwd() + "/Sample_lane" + lane 
             os.chdir(lane_path)
             print("Now in %s" % os.getcwd())
@@ -434,28 +437,35 @@ class project(object):
 
             R1andR2 = [(x,y) for x,y in zip(R1,R2)]
 
-            # Since this step takes for ever, check to make sure
-            # if this has already been done. If not do it.
-            combined_R1andR2_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x and ".fastq" in x]
+            if len(R2) != 0:
+                # Since this step takes for ever, check to make sure
+                # if this has already been done. If not do it.
 
-            if len(combined_R1andR2_files) == 0:
-                print("Combining R1's and R2's in lane %s" % (lane))
+                fastq_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x and ".fastq" in x]
 
-                for pair in R1andR2:
-                    R1_name = pair[0]
-                    R2_name = pair[1]
+                if len(fastq_files) == 0:
+                    print("Combining R1's and R2's in lane %s" % (lane))
 
-                    match       = re.search("[0-9][0-9][0-9](?=[.fastq])",R1_name)
-                    pair_number = match.group(0)
+                    for pair in R1andR2:
+                        R1_name = pair[0]
+                        R2_name = pair[1]
 
-                    paste_command = ["paste",R1_name,R2_name,"> R1_R2_" + pair_number + ".fastq"]
-                    paste_command = " ".join(paste_command)
-                    subprocess.call(paste_command,shell=True)
+                        match       = re.search("[0-9][0-9][0-9](?=[.fastq])",R1_name)
+                        pair_number = match.group(0)
 
-                combined_R1andR2_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x and ".fastq" in x]
+                        paste_command = ["paste",R1_name,R2_name,"> R1_R2_" + pair_number + ".fastq"]
+                        paste_command = " ".join(paste_command)
+                        subprocess.call(paste_command,shell=True)
+
+                    fastq_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x and ".fastq" in x]
+
+                else:
+                    print("R1 and R2's already combined. Skipping step")
 
             else:
-                print("R1 and R2's already combined. Skipping step")
+                print("Run is not Pair End ->")
+                read_not_pair_end = True
+                fastq_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and ".fastq" in x]
 
             # Start going through samples and pulling them out
             print("Pulling Out Samples")
@@ -470,8 +480,10 @@ class project(object):
                 barcode1_length = len(barcode1)
                 barcode2_length = len(barcode2)
 
+                print barcode1,barcode2
+
                 # If the stuff isn't barcoded. Skip
-                if barcode1_length == 0 or barcode2_length == 0:
+                if barcode1_length == 0:
                     continue
 
                 # With sample make a folder in the Project folder called Sample_sample
@@ -491,7 +503,7 @@ class project(object):
 
                     print("\tWorking on %s in lane %s" % (sample_name,sample_lane))
                    # Loop through combined R1and R2 files
-                    for r1andr2 in combined_R1andR2_files:
+                    for r1andr2 in fastq_files:
 
                         with open(r1andr2,"r") as fastq_file:
 
@@ -504,11 +516,11 @@ class project(object):
                                     sequences = line.strip().split()
 
                                     sequence1 = sequences[0]
-                                    sequence2 = sequences[1]
-
-                                    # Pull out the beginning part of sequence
                                     sequence_barcode1 = sequence1[:barcode1_length]
-                                    sequence_barcode2 = sequence2[:barcode2_length]
+                                    
+                                    if read_not_pair_end == True:
+                                        sequence2 = sequences[1]
+                                        sequence_barcode2 = sequence2[:barcode2_length]
 
                                 elif i % 4 == 2:
                                     qual1 = line.strip()
@@ -516,7 +528,7 @@ class project(object):
                                 elif i % 4 == 3:
                                     qual2 = line.strip()
 
-                                    if sequence_barcode1 == barcode1 and sequence_barcode2 == barcode2:
+                                    if read_not_pair_end == True and sequence_barcode1 == barcode1 and sequence_barcode2 == barcode2:
                                         output_file.write(readID.strip() + "\n")
 
                                         # Removing Barcodes
@@ -526,6 +538,9 @@ class project(object):
                                         # be truncated too!
                                         output_file.write(qual1.split()[0].strip() + "\n" )
                                         output_file.write(qual2.split()[0].strip()[barcode1_length:] + "\n")
+
+                                    elif read_not_pair_end == False and sequence_barcode1 == barcode1:
+                                        
 
             # Change Directory back to Top of Undetermined
             os.chdir(undetermined_indices_path)
@@ -575,11 +590,11 @@ class project(object):
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path="/mnt/thumper-e4/illumina_runs/130213_HAL_1222_AC112TACXX",sample_sheet="SampleSheet_Chlamy_Test.csv",bcl_output_dir="JoePipeTest")
+    p = project(run_path="/mnt/thumper-e4/illumina_runs/130307_JONAS_2149_AC1LRUACXX",sample_sheet="SampleSheet_JONAS_2149_ROSA_NoINDEX.csv",bcl_output_dir="UnalignedNew")
 
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    # p.grabUndetermined()
-    p.bowtieProjects()
-    p.importProjects2Annoj()
+    p.grabUndetermined()
+    # p.bowtieProjects()
+    # p.importProjects2Annoj()

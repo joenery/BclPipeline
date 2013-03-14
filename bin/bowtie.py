@@ -71,21 +71,25 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
             print("No fastqs in folder!")
             return
 
+    # Print Verions Information to thee bowtie.stats ouput file
+    bowtie_version = "%s --version > bowtie.stats" % (bowtie_shell_call)
+    subprocess.call(bowtie_version,shell=True)
+
     # Prepping Command
-    command_R1 = [bowtie_shell_call,options,indexes_folder + indexes_genome,",".join(fastqs_R1),"1> bowtie.R1.sam 2> bowtie.stats"]
-    command_R2 = [bowtie_shell_call,options,indexes_folder + indexes_genome,",".join(fastqs_R2),"1> bowtie.R2.sam 2> bowtie.stats"]
+    command_R1 = [bowtie_shell_call,options,indexes_folder + "/" + indexes_genome,",".join(fastqs_R1),"1> bowtie.R1.sam 2>> bowtie.stats"]
+    command_R2 = [bowtie_shell_call,options,indexes_folder + "/" + indexes_genome,",".join(fastqs_R2),"1> bowtie.R2.sam 2>> bowtie.stats"]
 
     print("Bowtie-ing %s" % folder)
 
     if len(fastqs_R2) == 0:
-        print("\t" + " ".join(command_R1))
+        # print("\t" + " ".join(command_R1))
         system_call(command_R1,"Died at Bowtie2 step")
 
     else:
-        print("\t" + " ".join(command_R1))
+        # print("\t" + " ".join(command_R1))
         system_call(command_R1,"Died at Bowtie2 R1 step")
 
-        print("\t" + " ".join(command_R2))
+        # print("\t" + " ".join(command_R2))
         system_call(command_R2,"Died at Bowtie2 R2 step")
 
     print("Finished Bowtie-ing %s" % folder)
@@ -122,7 +126,8 @@ def parseConfigFile(config_file):
 
     # Check the bowtie shell call
     if not os.path.isfile(bowtie_shell_call):
-        pass
+        # Also check the user's path
+        print("\nYour Bowtie Shell call doesn't seem to work!\n")
 
     # Check the INDEXES folder
     indexes_genome = os.path.basename(bowtie_indexes)
@@ -140,6 +145,22 @@ def parseConfigFile(config_file):
 
     return {"bowtie_shell_call":bowtie_shell_call,"indexes_genome":indexes_genome,"indexes_folder":indexes_folder,"options":options}
 
+def parseBowtieIndexes(bowtie_indexes_path):
+    """
+    the Bowtie Folder function automatically checks the veracity
+    of the information.
+
+    This will simple split out the components the function is looking 
+
+    indexes_folder
+    indexes_genome
+    """
+
+    indexes_genome = os.path.basename(bowtie_indexes_path)
+    indexes_folder = os.path.split(bowtie_indexes_path)[0]
+
+    return indexes_folder,indexes_genome
+
 if __name__ == "__main__":
     parser = MyParser(description="Given a folder and optionally a configuration file Bowtie will be performed on all\
                                    the relative files in that folder")
@@ -151,12 +172,15 @@ if __name__ == "__main__":
 
     advanced.add_argument("-c","--config-file",help="Absolute path to a config file that you would like to use for your Bowtie call and options. DEFAULT: None",\
                           default=None)
+    advanced.add_argument("-i","--bowtie-index-path",help="Path to the Bowtie Index and Genome you want to align to. DEFAULT: /home/seq/bin/bowtie2/INDEXES/tair10"\
+                          ,default="/home/seq/bin/bowtie2/INDEXES/tair10")
 
     # -------- Parse Options
     command_line_options = vars(parser.parse_args())
 
     folder      = command_line_options["folder"]
-    config_file = command_line_options["config_file"] 
+    config_file = command_line_options["config_file"]
+    bowtie_indexes_path = command_line_options["bowtie_index_path"] 
 
     # -------- Validate Options
 
@@ -175,3 +199,17 @@ if __name__ == "__main__":
     # -------- Set up the Options for bowtie_folder
     if config_file:
         parsed_options = parseConfigFile(config_file)
+
+        bowtie_shell_call = parsed_options["bowtie_shell_call"]
+        indexes_folder    = parsed_options["indexes_folder"]
+        indexes_genome    = parsed_options["indexes_genome"]
+        options           = parsed_options["options"]
+
+    elif not config_file:
+
+        bowtie_shell_call = "bowtie2"
+        options           = "--local -p 10"
+        indexes_folder,indexes_genome = parseBowtieIndexes(bowtie_indexes_path)
+
+    # --------- Run the Bowtie Command!
+    bowtie_folder(folder,options=options,bowtie_shell_call=bowtie_shell_call,indexes_folder=indexes_folder,indexes_genome=indexes_genome)

@@ -155,6 +155,9 @@ def get_folder_paths(project):
     """
     Creates a list of "Sample" folders from the Unaligned/Project/ folder specified
     """
+    if project[-1] != "/":
+        project = project + "/"
+
     return [project + x for x in os.listdir(project) if os.path.isdir(project + "/" +x)]
 
 if __name__=="__main__":
@@ -223,7 +226,7 @@ if __name__=="__main__":
         subprocess.call(gunzip_command,shell=True)
 
         # Gather up all fastq's
-        fastqs = [x for x in os.listdir(current_folder) if "fastq" in x and "_R1_" in x]
+        fastqs = [x for x in os.listdir(current_folder) if "fastq" in x and "R1_" in x]
 
         if len(fastqs) < 1:
 

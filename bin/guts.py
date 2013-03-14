@@ -78,7 +78,7 @@ class project(object):
         # 1) Get all the Sample Information and save in to a dictionary. If there is a lane with
         #    no Index then mark a flag and alert the user that a modified version of their sample
         #    sheet will be created
-        # 2) If FLAG from above then create a new sample_sheet and save old as samplesheet.csv.old
+        # 2) If FLAG from above then create a new sample_sheet as samplesheet_tmp.csv
 
         samples_with_no_indexes = False
 
@@ -133,7 +133,6 @@ class project(object):
         # Parse Emails
         self.getEmailsAndProjects()
 
-        # TURN BACK ON AFTER TESTING GRAB UNDETERMINED
         if samples_with_no_indexes:
 
             # Private Method Call
@@ -468,7 +467,7 @@ class project(object):
                 fastq_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and ".fastq" in x]
 
             # Start going through samples and pulling them out
-            print("Pulling Out Samples")
+            print("Pulling Out Samples:")
             for sample in lanes[lane]:
 
                 project     = sample["project"]
@@ -480,7 +479,7 @@ class project(object):
                 barcode1_length = len(barcode1)
                 barcode2_length = len(barcode2)
 
-                print barcode1,barcode2
+                print "\t",sample_name,barcode1,barcode2
 
                 # If the stuff isn't barcoded. Skip
                 if barcode1_length == 0:
@@ -518,7 +517,7 @@ class project(object):
                                     sequence1 = sequences[0]
                                     sequence_barcode1 = sequence1[:barcode1_length]
                                     
-                                    if read_not_pair_end == True:
+                                    if read_not_pair_end == False:
                                         sequence2 = sequences[1]
                                         sequence_barcode2 = sequence2[:barcode2_length]
 
@@ -528,7 +527,9 @@ class project(object):
                                 elif i % 4 == 3:
                                     qual2 = line.strip()
 
-                                    if read_not_pair_end == True and sequence_barcode1 == barcode1 and sequence_barcode2 == barcode2:
+                                    if (read_not_pair_end == False and sequence_barcode1 == barcode1 and sequence_barcode2 == barcode2) \
+                                            or (read_not_pair_end == True and sequence_barcode1 == barcode1):
+                                        
                                         output_file.write(readID.strip() + "\n")
 
                                         # Removing Barcodes
@@ -539,8 +540,6 @@ class project(object):
                                         output_file.write(qual1.split()[0].strip() + "\n" )
                                         output_file.write(qual2.split()[0].strip()[barcode1_length:] + "\n")
 
-                                    elif read_not_pair_end == False and sequence_barcode1 == barcode1:
-                                        
 
             # Change Directory back to Top of Undetermined
             os.chdir(undetermined_indices_path)

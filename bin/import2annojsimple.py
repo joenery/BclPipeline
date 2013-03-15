@@ -22,7 +22,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
 
     # ----------------- Create the chromosome files here ----------------------- #
     # Pass through Sam file and from that create the output chromosomes
-    # Doing this on the fly rather than having to pass the info
+    # # Doing this on the fly rather than having to pass the info
 
     open_files    = {}
     open_files_id = {}
@@ -43,12 +43,10 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
 
             elif row[0] == "@SQ":
                 passed_first_chromosome_header = True
-
-                # Get chromosome number
-                chromosome = getChromsomeNameFromSam(row[1])
+                chromosome = row[1].replace("SN:","")
 
                 # Open These Files
-                open_files[chromosome]    = open(chromosome + ".aj","w")
+                open_files[chromosome]    = open(chromosome.replace(":","_") + ".aj","w")
                 open_files_id[chromosome] = 0
 
             elif row[0] != marker and passed_first_chromosome_header:
@@ -92,9 +90,6 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             direction   = row[1]
             sequence    = row[9]
 
-            # Convert Chromosome String to Annoj Number Format
-            chromsome = getChromsomeNameFromSam(chromsome)
-
             # Skip unmapped reads 
             if chromosome in skip_these_lines:
                 continue
@@ -117,7 +112,10 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
 
                 count = open_files_id[chromosome]
 
-                open_files[chromosome].write("\t".join([str(count),chromosome,direction,read_start,read_end,sequence + "\n"]))
+                # Write The Assembly Chromosome in a way that Annoj Can Handle 
+                assembly = getAssemblyNameFromSam(chromosome)
+
+                open_files[chromosome].write("\t".join([str(count),assembly,direction,read_start,read_end,sequence + "\n"]))
 
         # Close Chromosomes
 
@@ -127,10 +125,15 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
         # sort Chromosome files by position and direction
         print("Sorting Chromosomes")
         for chrom in open_files:
-            command = "cat %s | sort -k4,4n -k3,3 > x; mv x %s" % ( str(chrom) + ".aj" , str(chrom) + ".aj" )
+            file_to_sort = chrom.replace(":","_")
+            command = "cat %s | sort -k4,4n -k3,3 > x; mv x %s" % ( str(file_to_sort) + ".aj" , str(file_to_sort) + ".aj" )
             subprocess.call(command,shell = True)
 
         print("Joining Chromosomes in to all.aj")
+        if "all.aj" in os.listdir(os.getcwd()):
+            remove_all_aj = "rm all.aj"
+            subprocess.call(remove_all_aj,shell=True)
+
         join_chromosomes_command = "cat *.aj > all.aj"
         subprocess.call(join_chromosomes_command,shell=True)
 
@@ -154,34 +157,21 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
         print("Connected. Uploading File(s).")
         with db:
             cur   = db.cursor()
+            chrom_file = "all.aj"
 
             query = "create database if not exists %s" % (database)
             cur.execute(query)
 
-            for chrom in open_files:
-                chrom_file = str(chrom) + ".aj"
-
-                query = "drop table if exists %s.reads_%s_%s" % (database,tablename,chrom)
-                cur.execute(query)
-
-                query = "create table %s.reads_%s_%s(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,chrom)
-                cur.execute(query)
-
-                query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.reads_%s_%s""" % (os.path.realpath(chrom_file),database,tablename,chrom)
-                cur.execute(query)
-
-            # Once Chlamy is done use this method!
-            # chrom_file = "all.aj"
-
-            # query = "drop table if exists %s.reads_%s_%d" % (database,tablename,i)
-            # cur.execute(query)
-
-            # query = "create table %s.reads_%s_%d(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename,i)
-            # cur.execute(query)
-
-            # query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.%s""" % (os.path.realpath(chrom_file),database,tablename)
+            query = "drop table if exists %s.%s" % (database,tablename)
             cur.execute(query)
 
+            query = "create table %s.%s(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename)
+            cur.execute(query)
+
+            query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.%s""" % (os.path.realpath(chrom_file),database,tablename)
+            cur.execute(query)
+
+            # End of Connection
             cur.close()
 
         print("Finished Uploading")
@@ -190,8 +180,8 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
         # ---------------------- Creating Fetcher Information ------------------- #
         with open(tablename + ".php","w") as fetcher:
             fetcher.write("<?php\n")
-            fetcher.write("$append_assembly = true;\n")
-            fetcher.write("$table = '%s.reads_%s_';\n" % (database,tablename) )
+            fetcher.write("$append_assembly = false;\n")
+            fetcher.write("$table = '%s.%s';\n" % (database,tablename) )
             fetcher.write("$title = '%s';\n" % (tablename))
             fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
             fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
@@ -210,7 +200,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             track_def.write(" scale: 0.03\n")
             track_def.write("},\n")
 
-def getChromsomeNameFromSam(chromosome_line):
+def getAssemblyNameFromSam(chromosome_line):
 
     if "Chr" in chromosome_line or "chr" in chromosome_line and not "chromosome" in chromosome_line:
         return chromosome_line.split(":")[1].replace("Chr","").replace("chr","")

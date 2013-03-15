@@ -202,7 +202,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
 
 def getAssemblyNameFromSam(chromosome_line):
 
-    if "Chr" in chromosome_line or "chr" in chromosome_line and not "chromosome" in chromosome_line:
+    if "Chr" in chromosome_line or "chr" in chromosome_line and not "chromosome" in chromosome_line and not "Chromosome" in chromosome_line:
         return chromosome_line.split(":")[1].replace("Chr","").replace("chr","")
 
     elif "chromosome" in chromosome_line and "AGP" in chromosome_line:

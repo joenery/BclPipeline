@@ -16,7 +16,7 @@ class MyParser(argparse.ArgumentParser):
         self.print_help()
         sys.exit(2)
 
-def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
+def local2mysql(sam,host,database,tablename,mysql_user,mysql_password,skip_to_upload=False):
     
     # assume the files are straight out of Bowtie 2 with no options and they contain unmapped reads
 
@@ -24,181 +24,183 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
     # Pass through Sam file and from that create the output chromosomes
     # # Doing this on the fly rather than having to pass the info
 
-    open_files    = {}
-    open_files_id = {}
+    if not skip_to_upload:
 
-    print("Creating Chromosome Files")
-    with open(sam,"r") as sam_chrom_count_object:
+        open_files    = {}
+        open_files_id = {}
 
-        passed_first_chromosome_header = False
+        print("Creating Chromosome Files")
+        with open(sam,"r") as sam_chrom_count_object:
 
-        for i,line in enumerate(sam_chrom_count_object):
-            row = line.strip().split()
+            passed_first_chromosome_header = False
 
-            marker = "@SQ"
+            for i,line in enumerate(sam_chrom_count_object):
+                row = line.strip().split()
 
-            if row[0] != marker and not passed_first_chromosome_header:
-                # We are at the beginning of sam file
-                continue
+                marker = "@SQ"
 
-            elif row[0] == "@SQ":
-                passed_first_chromosome_header = True
-                chromosome = row[1].replace("SN:","")
+                if row[0] != marker and not passed_first_chromosome_header:
+                    # We are at the beginning of sam file
+                    continue
 
-                # Open These Files
-                open_files[chromosome]    = open(chromosome.replace(":","_") + ".aj","w")
-                open_files_id[chromosome] = 0
+                elif row[0] == "@SQ":
+                    passed_first_chromosome_header = True
+                    chromosome = row[1].replace("SN:","")
 
-            elif row[0] != marker and passed_first_chromosome_header:
-                break
+                    # Open These Files
+                    open_files[chromosome]    = open(chromosome.replace(":","_") + ".aj","w")
+                    open_files_id[chromosome] = 0
 
-            elif i > 10 and not passed_first_chromosome_header:
-                # There aren't any headers in the sam file
-                # Can't continue
-                print("\nError: It looks like either the SAM file you've given doesn't have headers!\n")
-                print("Please re-run Import2AnnojSimple with a SAM file that has headers\n")
-                sys.exit(1)
+                elif row[0] != marker and passed_first_chromosome_header:
+                    break
+
+                elif i > 10 and not passed_first_chromosome_header:
+                    # There aren't any headers in the sam file
+                    # Can't continue
+                    print("\nError: It looks like either the SAM file you've given doesn't have headers!\n")
+                    print("Please re-run Import2AnnojSimple with a SAM file that has headers\n")
+                    sys.exit(1)
 
 
-    # --------------------- Parsing Sam File Aligns in to respective Chromosome Files ------ #
-    print("Parsing Sam file for Alignments")
-    with open(sam,"r") as sam_file:
-        
-        for i,line in enumerate(sam_file):
-
-            # Create a hash of things to skip
-            skip_these_lines = set()
-            skip_these_lines.add("@HD")
-            skip_these_lines.add("@SQ")
-            skip_these_lines.add("@PG")
-            skip_these_lines.add("*")
-            skip_these_lines.add("chloroplast")
-            skip_these_lines.add("mitochondira")
-            skip_these_lines.add("ChrC")
-            skip_these_lines.add("ChrM")
-
-            header = line.strip().split()[0]
-
-            if header in skip_these_lines:
-                continue
+        # --------------------- Parsing Sam File Aligns in to respective Chromosome Files ------ #
+        print("Parsing Sam file for Alignments")
+        with open(sam,"r") as sam_file:
             
-            # Get Variables
-            row         = line.strip().strip().split("\t")
-            chromosome  = row[2]
-            read_start  = row[3]
-            snip_string = row[5]
-            direction   = row[1]
-            sequence    = row[9]
+            for i,line in enumerate(sam_file):
 
-            # Skip unmapped reads 
-            if chromosome in skip_these_lines:
-                continue
+                # Create a hash of things to skip
+                skip_these_lines = set()
+                skip_these_lines.add("@HD")
+                skip_these_lines.add("@SQ")
+                skip_these_lines.add("@PG")
+                skip_these_lines.add("*")
+                skip_these_lines.add("chloroplast")
+                skip_these_lines.add("mitochondira")
+                skip_these_lines.add("ChrC")
+                skip_these_lines.add("ChrM")
 
-            # From snip string get length of match and create end of read
-            match            = re.search("([0-9][0-9](?=M)|[0-9][0-9][0-9](?=M))",snip_string)
-            alignment_length = match.group(0)
-            read_end         = str( int(read_start) + int(alignment_length) - 1 )
+                header = line.strip().split()[0]
 
-            # Change direction from Sam form to Annoj form
-            if direction == "0":
-                direction = "+"
+                if header in skip_these_lines:
+                    continue
+                
+                # Get Variables
+                row         = line.strip().strip().split("\t")
+                chromosome  = row[2]
+                read_start  = row[3]
+                snip_string = row[5]
+                direction   = row[1]
+                sequence    = row[9]
 
-            elif direction == "16":
-                direction = "-"
+                # Skip unmapped reads 
+                if chromosome in skip_these_lines:
+                    continue
 
-            # Write to output
-            if chromosome in open_files:
-                open_files_id[chromosome] += 1
+                # From snip string get length of match and create end of read
+                match            = re.search("([0-9][0-9](?=M)|[0-9][0-9][0-9](?=M))",snip_string)
+                alignment_length = match.group(0)
+                read_end         = str( int(read_start) + int(alignment_length) - 1 )
 
-                count = open_files_id[chromosome]
+                # Change direction from Sam form to Annoj form
+                if direction == "0":
+                    direction = "+"
 
-                # Write The Assembly Chromosome in a way that Annoj Can Handle 
-                assembly = getAssemblyNameFromSam(chromosome)
+                elif direction == "16":
+                    direction = "-"
 
-                open_files[chromosome].write("\t".join([str(count),assembly,direction,read_start,read_end,sequence + "\n"]))
+                # Write to output
+                if chromosome in open_files:
+                    open_files_id[chromosome] += 1
 
-        # Close Chromosomes
+                    count = open_files_id[chromosome]
 
-        for f in open_files:
-            open_files[f].close()
-        
-        # sort Chromosome files by position and direction
-        print("Sorting Chromosomes")
-        for chrom in open_files:
-            file_to_sort = chrom.replace(":","_")
-            command = "cat %s | sort -k4,4n -k3,3 > x; mv x %s" % ( str(file_to_sort) + ".aj" , str(file_to_sort) + ".aj" )
-            subprocess.call(command,shell = True)
+                    # Write The Assembly Chromosome in a way that Annoj Can Handle 
+                    assembly = getAssemblyNameFromSam(chromosome)
 
-        print("Joining Chromosomes in to all.aj")
-        if "all.aj" in os.listdir(os.getcwd()):
-            remove_all_aj = "rm all.aj"
-            subprocess.call(remove_all_aj,shell=True)
+                    open_files[chromosome].write("\t".join([str(count),assembly,direction,read_start,read_end,sequence + "\n"]))
 
-        join_chromosomes_command = "cat *.aj > all.aj"
-        subprocess.call(join_chromosomes_command,shell=True)
+            # Close Chromosomes
 
-        # ------------------------ MySQL Upload --------------------------- #
-        
-        # Filter those stupid Mysql warnings
-        filterwarnings('ignore',category = mdb.Warning)
-       
-        # Connect to MySQL Database:
-        print("Connecting to MySQL Database")
-        
-        try:
-            db = mdb.connect(host=host,user = mysql_user,passwd = mysql_password,local_infile = 1)
+            for f in open_files:
+                open_files[f].close()
+            
+            # sort Chromosome files by position and direction
+            print("Sorting Chromosomes")
+            for chrom in open_files:
+                file_to_sort = chrom.replace(":","_")
+                command = "cat %s | sort -k4,4n -k3,3 > x; mv x %s" % ( str(file_to_sort) + ".aj" , str(file_to_sort) + ".aj" )
+                subprocess.call(command,shell = True)
 
-        except mdb.Error,e:
-            print("Error %d: %s") % (e.args[0],e.args[1])
-            print("It looks like you gave a host name that didn't exist!")
-            sys.exit(1)
+            print("Joining Chromosomes in to all.aj")
+            if "all.aj" in os.listdir(os.getcwd()):
+                remove_all_aj = "rm all.aj"
+                subprocess.call(remove_all_aj,shell=True)
 
-        # With connection create an object to send queries
-        print("Connected. Uploading File(s).")
-        with db:
-            cur   = db.cursor()
-            chrom_file = "all.aj"
+            join_chromosomes_command = "cat *.aj > all.aj"
+            subprocess.call(join_chromosomes_command,shell=True)
 
-            query = "create database if not exists %s" % (database)
-            cur.execute(query)
+    # ------------------------ MySQL Upload --------------------------- #
+    
+    # Filter those stupid Mysql warnings
+    filterwarnings('ignore',category = mdb.Warning)
+   
+    # Connect to MySQL Database:
+    print("Connecting to MySQL Database")
+    
+    try:
+        db = mdb.connect(host=host,user = mysql_user,passwd = mysql_password,local_infile = 1)
 
-            query = "drop table if exists %s.%s" % (database,tablename)
-            cur.execute(query)
+    except mdb.Error,e:
+        print("Error %d: %s") % (e.args[0],e.args[1])
+        print("It looks like you gave a host name that didn't exist!")
+        sys.exit(1)
 
-            query = "create table %s.%s(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename)
-            cur.execute(query)
+    # With connection create an object to send queries
+    print("Connected. Uploading File(s).")
+    with db:
+        cur   = db.cursor()
+        chrom_file = "all.aj"
 
-            query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.%s""" % (os.path.realpath(chrom_file),database,tablename)
-            cur.execute(query)
+        query = "create database if not exists %s" % (database)
+        cur.execute(query)
 
-            # End of Connection
-            cur.close()
+        query = "drop table if exists %s.%s" % (database,tablename)
+        cur.execute(query)
 
-        print("Finished Uploading")
-        print("Creating Fetcher and Track Information in Current Working Directory")
+        query = "create table %s.%s(id INT,assembly VARCHAR(2), strand VARCHAR(1), start INT, end INT, sequenceA VARCHAR(100), sequenceB VARCHAR(100))"% (database,tablename)
+        cur.execute(query)
 
-        # ---------------------- Creating Fetcher Information ------------------- #
-        with open(tablename + ".php","w") as fetcher:
-            fetcher.write("<?php\n")
-            fetcher.write("$append_assembly = false;\n")
-            fetcher.write("$table = '%s.%s';\n" % (database,tablename) )
-            fetcher.write("$title = '%s';\n" % (tablename))
-            fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
-            fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
-            fetcher.write("require_once '<PUT RELATIVE PATH TO INCLUDES>/includes/common_reads.php';\n")
-            fetcher.write("?>\n")
+        query = """LOAD DATA LOCAL INFILE '%s' INTO TABLE %s.%s""" % (os.path.realpath(chrom_file),database,tablename)
+        cur.execute(query)
 
-        # --------------------- Create Track Information ------------------------ #
-        with open(tablename + ".trackDefinition","w") as track_def:
-            track_def.write("{\n")
-            track_def.write(" id: '%s',\n"   % tablename)
-            track_def.write(" name: '%s',\n" % tablename)
-            track_def.write(" type: 'ReadsTrack',\n")
-            track_def.write(" path: 'NA',\n")
-            track_def.write(" data: '<INSERT RELATIVE PATH TO FETCHER>/%s',\n" % (tablename + ".php"))
-            track_def.write(" height: '90', \n")
-            track_def.write(" scale: 0.03\n")
-            track_def.write("},\n")
+        # End of Connection
+        cur.close()
+
+    print("Finished Uploading")
+    print("Creating Fetcher and Track Information in Current Working Directory")
+
+    # ---------------------- Creating Fetcher Information ------------------- #
+    with open(tablename + ".php","w") as fetcher:
+        fetcher.write("<?php\n")
+        fetcher.write("$append_assembly = false;\n")
+        fetcher.write("$table = '%s.%s';\n" % (database,tablename) )
+        fetcher.write("$title = '%s';\n" % (tablename))
+        fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
+        fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
+        fetcher.write("require_once '<PUT RELATIVE PATH TO INCLUDES>/includes/common_reads.php';\n")
+        fetcher.write("?>\n")
+
+    # --------------------- Create Track Information ------------------------ #
+    with open(tablename + ".trackDefinition","w") as track_def:
+        track_def.write("{\n")
+        track_def.write(" id: '%s',\n"   % tablename)
+        track_def.write(" name: '%s',\n" % tablename)
+        track_def.write(" type: 'ReadsTrack',\n")
+        track_def.write(" path: 'NA',\n")
+        track_def.write(" data: '<INSERT RELATIVE PATH TO FETCHER>/%s',\n" % (tablename + ".php"))
+        track_def.write(" height: '90', \n")
+        track_def.write(" scale: 0.03\n")
+        track_def.write("},\n")
 
 def getAssemblyNameFromSam(chromosome_line):
 
@@ -235,6 +237,7 @@ if __name__ == "__main__":
     advanced.add_argument("-mu","--mysql-user",      help = "The mysql user you would like to login in as.  DEFAULT: mysql",   default="mysql")
     advanced.add_argument("-pw","--mysql-password",  help = "The corresponding password for the MySQL user. DEFAULT: rekce",   default="rekce")
     advanced.add_argument("-s","--store-flat-files", help = "Keep the flat chromosome files that are created. DEFAULT: false", action="store_true")
+    advanced.add_argument("-su","--skip-to-upload",  help = "If all.aj has already been created. Skip to Upload. DEFAULT: false", action="store_true")
 
     # Get Command Line Options
     command_line_options = vars(parser.parse_args())
@@ -246,6 +249,7 @@ if __name__ == "__main__":
     mysql_user     = command_line_options["mysql_user"]
     mysql_password = command_line_options["mysql_password"]
     store_flat_files = command_line_options["store_flat_files"]
+    skip_to_upload   = command_line_options["skip_to_upload"]
 
     # Make sure all commands are present
     if not database or not host or not input_file or not tablename:
@@ -255,7 +259,7 @@ if __name__ == "__main__":
 
     # SCRIPT!
     try:
-        local2mysql(input_file,host,database,tablename,mysql_user,mysql_password)
+        local2mysql(input_file,host,database,tablename,mysql_user,mysql_password,skip_to_upload=skip_to_upload)
 
     except IOError:
         # User has given a file name / path that is not correct

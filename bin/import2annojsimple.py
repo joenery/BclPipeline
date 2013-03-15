@@ -45,7 +45,9 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
                 passed_first_chromosome_header = True
 
                 # Get chromosome number
-                chromosome = row[1].split(":")[1].replace("Chr","").replace("chr","")
+                chromosome = getChromsomeNameFromSam(row[1])
+
+                # Open These Files
                 open_files[chromosome]    = open(chromosome + ".aj","w")
                 open_files_id[chromosome] = 0
 
@@ -58,6 +60,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
                 print("\nError: It looks like either the SAM file you've given doesn't have headers!\n")
                 print("Please re-run Import2AnnojSimple with a SAM file that has headers\n")
                 sys.exit(1)
+
 
     # --------------------- Parsing Sam File Aligns in to respective Chromosome Files ------ #
     print("Parsing Sam file for Alignments")
@@ -83,12 +86,14 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             
             # Get Variables
             row         = line.strip().strip().split("\t")
-            chromosome  = row[2].replace("Chr","").replace("chr","")
+            chromosome  = row[2]
             read_start  = row[3]
             snip_string = row[5]
             direction   = row[1]
             sequence    = row[9]
 
+            # Convert Chromosome String to Annoj Number Format
+            chromsome = getChromsomeNameFromSam(chromsome)
 
             # Skip unmapped reads 
             if chromosome in skip_these_lines:
@@ -129,7 +134,6 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
         join_chromosomes_command = "cat *.aj > all.aj"
         subprocess.call(join_chromosomes_command,shell=True)
 
-        
         # ------------------------ MySQL Upload --------------------------- #
         
         # Filter those stupid Mysql warnings
@@ -205,6 +209,17 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password):
             track_def.write(" height: '90', \n")
             track_def.write(" scale: 0.03\n")
             track_def.write("},\n")
+
+def getChromsomeNameFromSam(chromosome_line):
+
+    if "Chr" in chromosome_line or "chr" in chromosome_line and not "chromosome" in chromosome_line:
+        return chromosome_line.split(":")[1].replace("Chr","").replace("chr","")
+
+    elif "chromosome" in chromosome_line and "AGP" in chromosome_line:
+        return chromosome_line.split(":")[2]
+
+    else:
+        return chromosome_line.split(":")[1].replace("Chr","").replace("chr","")
 
 if __name__ == "__main__":
     """

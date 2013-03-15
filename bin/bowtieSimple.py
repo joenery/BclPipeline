@@ -23,7 +23,7 @@ def system_call(command,err_message):
 
     val = subprocess.call(command)
 
-    if val !=0 :
+    if val != 0 :
         print("".join(["\n",err_message,"\n","Terminating Script"]))
         sys.exit(1)
 
@@ -55,10 +55,6 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
         subprocess.call(gunzip)
 
     # Getting Fastq's and prepping 
-
-    # Make Sure to add bowtie output logs that contain
-    # what the call was to bowtie etc
-
     # check for Pair end reads
     fastqs_R1 = [folder + "/" + x for x in os.listdir(folder) if "R1" in x and ".fastq" in x]
     fastqs_R2 = [folder + "/" + x for x in os.listdir(folder) if "R2" in x and ".fastq" in x]
@@ -68,28 +64,30 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
         fastqs_R1 = [x for x in os.listdir(folder) if ".fastq" in x and "R1" not in x and "R2" not in x]
 
         if len(fastqs_R1) == 0:
-            print("No fastqs in folder!")
+            print("No fastqs in folder! Bye!")
             return
 
     # Print Verions Information to thee bowtie.stats ouput file
+    # When Commands are called the will be echo'd to the bowtie.stats file
     bowtie_version = "%s --version > bowtie.stats" % (bowtie_shell_call)
     subprocess.call(bowtie_version,shell=True)
 
-    # Prepping Command
+    # Prepping Commands
     command_R1 = [bowtie_shell_call,options,indexes_folder + "/" + indexes_genome,",".join(fastqs_R1),"1> bowtie.R1.sam 2>> bowtie.stats"]
     command_R2 = [bowtie_shell_call,options,indexes_folder + "/" + indexes_genome,",".join(fastqs_R2),"1> bowtie.R2.sam 2>> bowtie.stats"]
 
+    # Begin Bowtie
     print("Bowtie-ing %s" % folder)
+    echo_R1 = "echo %s >> bowtie.stats" % ("\t" + " ".join(command_R1))
+    subprocess.call(echo_R1,shell=True)
 
-    if len(fastqs_R2) == 0:
-        # print("\t" + " ".join(command_R1))
-        system_call(command_R1,"Died at Bowtie2 step")
+    system_call(command_R1,"Died at Bowtie2 R1 step")
 
-    else:
-        # print("\t" + " ".join(command_R1))
-        system_call(command_R1,"Died at Bowtie2 R1 step")
+    if len(fastqs_R2) != 0:
 
-        # print("\t" + " ".join(command_R2))
+        echo_R2 = "echo %s >> bowtie.stats" % ("\t" + " ".join(command_R2))
+        subprocess.call(echo_R1,shell=True)
+
         system_call(command_R2,"Died at Bowtie2 R2 step")
 
     print("Finished Bowtie-ing %s" % folder)
@@ -125,9 +123,10 @@ def parseConfigFile(config_file):
                 pass
 
     # Check the bowtie shell call
-    if not os.path.isfile(bowtie_shell_call):
+    if not os.path.isfile(bowtie_shell_call) or not isExcecutableInBash(bowtie_shell_call):
         # Also check the user's path
-        print("\nYour Bowtie Shell call doesn't seem to work!\n")
+        print("\nYour Bowtie Shell call doesn't seem to exist! I checked your $PATH, too!\n")
+        sys.exit(1)
 
     # Check the INDEXES folder
     indexes_genome = os.path.basename(bowtie_indexes)
@@ -160,6 +159,22 @@ def parseBowtieIndexes(bowtie_indexes_path):
     indexes_folder = os.path.split(bowtie_indexes_path)[0]
 
     return indexes_folder,indexes_genome
+
+def isExcecutableInBash(exceutable_name):
+    """
+    Checks folders in Unix $PATH variable for the exceutable
+    Picked up this code from StackOverflow
+    """
+    for path in os.environ["PATH"].split(os.pathstep):
+        path = path.strip('"')
+
+        exceutable_file = os.path.join(path,exceutable_name)
+        if os.path.isfile(exceutable_file):
+            return True
+
+    else:
+        return False
+
 
 if __name__ == "__main__":
     parser = MyParser(description="Given a folder and optionally a configuration file Bowtie will be performed on all\

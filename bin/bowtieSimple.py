@@ -50,9 +50,9 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
 
     if len(gz) > 0:
         print("Gunzipping all fastq's in %s" % (folder))
-        gunzip = "gz *.gz"
+        gunzip = "gunzip *.gz"
 
-        subprocess.call(gunzip,shel=True)
+        subprocess.call(gunzip,shell=True)
 
     # Getting Fastq's and prepping 
     # check for Pair end reads

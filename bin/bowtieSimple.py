@@ -36,7 +36,7 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
 
     # Is folder formatted properly?
     if folder[-1] == "/":
-        folder = folder[-1]
+        folder = folder[:-1]
 
     # Does the INDEXES folder have the specified genome?
     indexes_check = [x for x in os.listdir(indexes_folder) if indexes_genome in x]

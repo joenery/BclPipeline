@@ -61,7 +61,7 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
 
     if len(fastqs_R1) == 0:
 
-        fastqs_R1 = [x for x in os.listdir(folder) if ".fastq" in x and "R1" not in x and "R2" not in x]
+        fastqs_R1 = [x for x in os.listdir(folder) if ".fastq" in x]
 
         if len(fastqs_R1) == 0:
             print("No fastqs in folder! Bye!")

@@ -173,3 +173,4 @@ if __name__=="__main__":
         # Clean up
         print("Finished BCL Pipeline :-]")
         run_log.close()
+        

@@ -174,6 +174,10 @@ class project(object):
                 # As long as API remains the same this method will always work
                 genome = self.projects[project][sample]["genome"]
 
+                if not genome:
+                    print("Skipping %s" % sample)
+                    continue
+
                 folder = output_dir + "/Project_" + project + "/Sample_" + sample
 
                 bowtie_folder(folder,indexes_genome=genome)

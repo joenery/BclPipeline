@@ -33,6 +33,7 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
     """
     # Change in to Sample Folder
     os.chdir(folder)
+    print os.getcwd()
 
     # Is folder formatted properly?
     if folder[-1] == "/":
@@ -56,8 +57,8 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
 
     # Getting Fastq's and prepping 
     # check for Pair end reads
-    fastqs_R1 = [folder + "/" + x for x in os.listdir(folder) if "R1" in x and ".fastq" in x]
-    fastqs_R2 = [folder + "/" + x for x in os.listdir(folder) if "R2" in x and ".fastq" in x]
+    fastqs_R1 = [os.getcwd() + "/" + x for x in os.listdir(os.getcwd()) if "R1" in x and ".fastq" in x]
+    fastqs_R2 = [os.getcwd() + "/" + x for x in os.listdir(os.getcwd()) if "R2" in x and ".fastq" in x]
 
     if len(fastqs_R1) == 0:
 
@@ -77,13 +78,14 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
     command_R2 = [bowtie_shell_call,options,indexes_folder + "/" + indexes_genome,",".join(fastqs_R2),"1> bowtie.R2.sam 2>> bowtie.stats"]
 
     # Begin Bowtie
-    print("Bowtie-ing %s" % folder)
+    print("Bowtie-ing R1 in %s" % folder)
     echo_R1 = "echo %s >> bowtie.stats" % ("\t" + " ".join(command_R1))
     subprocess.call(echo_R1,shell=True)
 
     system_call(command_R1,"Died at Bowtie2 R1 step")
 
     if len(fastqs_R2) != 0:
+        print("Bowtie-ing R2's")
 
         echo_R2 = "echo %s >> bowtie.stats" % ("\t" + " ".join(command_R2))
         subprocess.call(echo_R1,shell=True)
@@ -105,13 +107,13 @@ def parseConfigFile(config_file):
         for i,line in enumerate(bowtie_config):
 
             if i == 0:
-                bowtie_shell_call = line.strip()
+                bowtie_shell_call = line.strip().replace("~",os.environ["HOME"])
 
             elif i == 1:
                 options = line.strip()
 
             elif i == 2:
-                bowtie_indexes = line.strip()
+                bowtie_indexes = line.strip().replace("~",os.environ["HOME"])
 
             if i > 2 and warned_user == False:
                 print("\nWoah. Your config file is more than three lines.\n It might not be the right file and bowtie will get angry with the options I give it!\n")
@@ -124,7 +126,7 @@ def parseConfigFile(config_file):
 
     # Check the bowtie shell call
     if not os.path.isfile(bowtie_shell_call) or not isExcecutableInBash(bowtie_shell_call):
-        # Also check the user's path
+
         print("\nYour Bowtie Shell call doesn't seem to exist! I checked your $PATH, too!\n")
         sys.exit(1)
 
@@ -165,7 +167,7 @@ def isExcecutableInBash(exceutable_name):
     Checks folders in Unix $PATH variable for the exceutable
     Picked up this code from StackOverflow
     """
-    for path in os.environ["PATH"].split(os.pathstep):
+    for path in os.environ["PATH"].split(os.pathsep):
         path = path.strip('"')
 
         exceutable_file = os.path.join(path,exceutable_name)

@@ -9,11 +9,13 @@ import os
 import sys
 from guts import *
 
+
 class MyParser(argparse.ArgumentParser):
     def error(self,message):
         sys.stderr.write("error: %s\n" % message)
         self.print_help()
         sys.exit(2)
+
 
 class sampleSheetParser(project):
     
@@ -96,8 +98,6 @@ class sampleSheetParser(project):
                     fetcher.write("?>\n")
 
         os.chdir(top_dir)
-
-
 
 
 if __name__=="__main__":

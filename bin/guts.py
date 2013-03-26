@@ -9,7 +9,7 @@ from bowtieSimple import bowtie_folder
 from import2annojsimple import local2mysql
 from emailnotifications  import notifications
 
-def system_call(command,err_message,admin_message=False):
+def system_call(command,err_message,admin_message=False,extra=None):
     """
     A wrapper for subprocess.call()
 
@@ -21,17 +21,17 @@ def system_call(command,err_message,admin_message=False):
 
     val = subprocess.call(command)
 
-    if val != 0 and admin_message == False:
+    if (val != 0 and admin_message == False) or (val != 0 and extra==None and admin_message == True):
         print("".join(["\n",err_message,"\n","Terminating Script"]))
         sys.exit(1)
 
-    elif val != 0 and admin_message == True:
+    elif val != 0 and admin_message == True and extra:
         print("".join(["\n",err_message,"\n","Terminating Script"]))
 
-        subject = "Pipeline failed on %s" % (os.path.basename(self.run))
-        text    = "Error Message: %s\n\nPath to run: %s" % (err_message,self.run)
+        subject = "Pipeline failed on %s" % (os.path.basename(extra.run))
+        text    = "Error Message--> %s\n\nPath to run--> %s" % (err_message,extra.run)
 
-        self.adminEmailBlast(SUBJECT=subject,TEXT=text)
+        extra.adminEmailBlast(subject=subject,text=text)
         sys.exit(1)
 
 class project(object):
@@ -153,7 +153,7 @@ class project(object):
         os.chdir(self.run + "/" + self.bcl_output_dir)
         print("Running make command in %s" %(os.getcwd()))
 
-        system_call(["make","-j","8"],"Make Failed",admin_message=True)
+        system_call(["make","-j","8"],"Make Failed",admin_message=True,extra=self)
 
         # You can Rip this out when we move to the all index system.
         # If there are Samples With Undetermined Indicies

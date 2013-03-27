@@ -167,6 +167,7 @@ class project(object):
         output_dir = self.run + "/" + self.bcl_output_dir
 
         for project in self.projects:
+            print("Working on Project %s" % project)
 
             for sample in self.projects[project]:
 
@@ -180,6 +181,7 @@ class project(object):
 
                 folder = output_dir + "/Project_" + project + "/Sample_" + sample
 
+                print("\tSample %s" % sample)
                 bowtie_folder(folder,indexes_genome=genome)
 
     def importProjects2Annoj(self):

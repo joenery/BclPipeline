@@ -50,7 +50,7 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
     gz = [x for x in os.listdir(folder) if ".gz" in x and ".fastq" in x]
 
     if len(gz) > 0:
-        print("Gunzipping all fastq's in %s" % (folder))
+        print("\tGunzipping all fastq's in %s" % (folder))
         gunzip = "gunzip *.gz"
 
         subprocess.call(gunzip,shell=True)
@@ -78,14 +78,14 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
     command_R2 = [bowtie_shell_call,options,indexes_folder + "/" + indexes_genome,",".join(fastqs_R2),"1> bowtie.R2.sam 2>> bowtie.stats"]
 
     # Begin Bowtie
-    print("Bowtie-ing R1 in %s" % folder)
+    print("\tBowtie-ing R1 in %s" % folder)
     echo_R1 = "echo %s >> bowtie.stats" % ("\t" + " ".join(command_R1))
     subprocess.call(echo_R1,shell=True)
 
     system_call(command_R1,"Died at Bowtie2 R1 step")
 
     if len(fastqs_R2) != 0:
-        print("Bowtie-ing R2's")
+        print("\tBowtie-ing R2's")
 
         echo_R2 = "echo %s >> bowtie.stats" % ("\t" + " ".join(command_R2))
         subprocess.call(echo_R1,shell=True)

@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+
+from import2annojsimple import *
+import os
+import sys
+import subprocess
+
+
+if __name__=="__main__":
+    
+    try:
+        f = sys.argv[1]
+    except IndexError:
+        sys.exit(1)
+
+    # Change to dir
+    if os.path.isdir(f):
+        os.chdir(f)
+        print(os.getcwd())
+        top = os.getcwd()
+
+        list_of_folders = [x for x in os.listdir(os.getcwd()) if os.path.isdir(x)]
+
+        for folder in list_of_folders:
+            print("Working on %s" % (os.path.basename(folder)))
+            folder_path = os.path.join(os.getcwd(),folder)
+
+            os.chdir(folder_path)
+            sample = os.path.basename(folder_path).replace("Sample_","")
+
+            make_dir = "mkdir annoj"
+            subprocess.call(make_dir,shell=True)
+            os.chdir("annoj")
+
+            getChromosomeFiles("../bowtie.R1.sam",tdna_filter=True)
+            upload2mysql("thumper-e1","tDNA",sample,"mysql","rekce",tdna_filter=True)
+            
+            # Set path back to top
+            os.chdir(top)

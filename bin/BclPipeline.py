@@ -161,7 +161,7 @@ if __name__=="__main__":
         p.bowtieProjects()
 
         print("Running Annoj prep and upload")
-        p.import2annojsimple()
+        p.importProjects2Annoj()
 
         # Alert the Masses!
         if not no_notifications:

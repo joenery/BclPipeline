@@ -457,6 +457,7 @@ def filter_all(input_file,window_size=200,min_reads=5):
 
                 prev_bin = bin
 
+    # Print Out the Hit counts
     with open("hit.count","w") as hits:
 
         count = 0
@@ -465,7 +466,7 @@ def filter_all(input_file,window_size=200,min_reads=5):
             count += len(peaks[chrom])
 
         hits.write("Hits in track: %s\n" % (count))
-        hits.write("\n\nHits signify the amount of bins the size of the window (%s basepairs) that have more than %s reads\n\n" %(window_size,min_reads))
+        hits.write("Hits signify the amount of bins the size of the window (%s basepairs) that have more than %s reads\n" %(window_size,min_reads))
 
 
 

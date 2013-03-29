@@ -69,6 +69,9 @@ class project(object):
         # Check undetermined Indices?
         self.undetermined = False
 
+        # Is their a porject with TDNA in it?
+        self.tdna = false
+
     def parseSampleSheet(self):
         """
         """
@@ -118,15 +121,22 @@ class project(object):
                 if not index:
                     samples_with_no_indexes = True
 
-                # Yup
+                # Make the assumption that BT means tair10
                 if genome == "bt":
                     genome = "tair10"
+
+
+                # Is the sample part of a TDNA project?
+                if "tdna" in project.lower():
+                    tdna = True
+                else:
+                    tdna = False
 
                 # Add to dictionary
                 projects[project][sample_name] = {"genome":genome,"destination":destination,
                                                   "database":database,"barcode1":barcode1,"barcode2":barcode2,
                                                   "lane":lane,"index":index,"project":project,"sample_name":sample_name,
-                                                  "owner_email":owner_email}
+                                                  "owner_email":owner_email."tdna":tdna}
 
         self.projects = projects
 
@@ -200,6 +210,8 @@ class project(object):
 
                 destination = self.projects[project][sample]["destination"]
                 database    = self.projects[project][sample]["database"]
+                tdna        = self.projects[project][sample]["tdna"]
+                input_file  = "../bowtie.R1.sam"
 
                 if not destination and not database:
                     print("Skipping %s" % sample)
@@ -218,7 +230,13 @@ class project(object):
                 subprocess.call(["mkdir","annoj"])
                 os.chdir("annoj")
 
-                local2mysql("../bowtie.R1.sam",destination,database,sample,mysql_user=mysql_user,mysql_password=mysql_password)
+                if tdna:
+                    getChromosomeFiles(input_file,tdna_filter=True)
+                    upload2mysql(destination,database,sample,mysql_user,mysql_password,tdna_filter=True)
+
+                else:
+                    getChromosomeFiles(input_file)
+                    upload2mysql(destination,database,sample,mysql_user,mysql_password)              
 
     def adminEmailBlast(self,subject,text):
         """

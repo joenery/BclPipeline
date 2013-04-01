@@ -16,11 +16,13 @@ from guts import *
 
 #--------------------- Script Specific Functions ----------------- #
 
+
 class MyParser(argparse.ArgumentParser):
     def error(self,message):
         sys.stderr.write("error: %s\n" % message)
         self.print_help()
         sys.exit(2)
+
 
 def watchRunFolder(run,sleep):
     """
@@ -60,6 +62,22 @@ def watchRunFolder(run,sleep):
                 else:
                     print("Waiting for Real Time Analysis to Finish. Time: %s" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
 
+def parseConfigFile(path_to_file):
+    """
+    """
+    user_options = []
+
+    with open(path_to_file,"r") as config_file:
+        for i,line in enumerate(config_file):
+            row = line.strip().split()
+
+            if i == 0:
+                user_options.append(line.strip())
+
+
+    return " ".join(user_options)
+
+
 if __name__=="__main__":
     
     # --------------------------- Configure Arg Parser ----------------------------- #
@@ -83,8 +101,9 @@ if __name__=="__main__":
                                                      action="store_true") 
 
     advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet.csv")
-    advanced.add_argument("-o","--output-dir",help = "NAME of FOLDER to create at the top of the RUN folder provided. DEFAULT: Unaligned",default="Unaligned") 
-    advanced.add_argument("-a","--admin-only",help = "Send notifications to Admins only. Helpful for debugging. DEFAULT: off",action = "store_true")
+    advanced.add_argument("-o","--output-dir",  help = "NAME of FOLDER to create at the top of the RUN folder provided. DEFAULT: Unaligned",default="Unaligned") 
+    advanced.add_argument("-a","--admin-only",  help = "Send notifications to Admins only. Helpful for debugging. DEFAULT: off",action = "store_true")
+    advanced.add_argument("-c","--config-file", help = "Path to optional config file for configureBclToFastq.py DEFAULT: None", default=None)
 
     #---------------------------- Parse Command Line Options ---------------------------- #
     
@@ -96,6 +115,7 @@ if __name__=="__main__":
     sample_sheet     = command_line_options["sample_sheet"]
     bcl_output_dir   = command_line_options["output_dir"]
     admin_only       = command_line_options["admin_only"]
+    config_file      = command_line_options["config_file"]
 
     #-------------------------- Checking the options! ------------------------------------ #
     if not run:
@@ -105,6 +125,9 @@ if __name__=="__main__":
     if not os.path.exists(run):
         print("\nIt looks like that Path: %s doesn't exist. Try again.\n" % (run))
         sys.exit(1)
+
+    if config_file:
+        user_commands_config = parseConfigFile(config_file)
 
     # -------------------------- Parse SampleSheet.csv  ------------------------------- #
     
@@ -154,7 +177,10 @@ if __name__=="__main__":
                 p.bclStartEmailBlast()            
 
         print("Starting BCL Analysis")
-        p.runConfigureBclToFastq()
+        if config_file:
+            p.runConfigureBclToFastq(user_commands_config)
+        else:
+            p.runConfigureBclToFastq()
         print("Finished BCL Analysis")
 
         print("Running Bowtie Analysis")

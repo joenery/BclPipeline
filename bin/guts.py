@@ -6,7 +6,7 @@ import re
 
 # My modules
 from bowtieSimple import bowtie_folder
-from import2annojsimple import local2mysql
+from import2annojsimple import *
 from emailnotifications  import notifications
 
 def system_call(command,err_message,admin_message=False,extra=None):
@@ -68,9 +68,6 @@ class project(object):
 
         # Check undetermined Indices?
         self.undetermined = False
-
-        # Is their a porject with TDNA in it?
-        self.tdna = false
 
     def parseSampleSheet(self):
         """
@@ -136,7 +133,7 @@ class project(object):
                 projects[project][sample_name] = {"genome":genome,"destination":destination,
                                                   "database":database,"barcode1":barcode1,"barcode2":barcode2,
                                                   "lane":lane,"index":index,"project":project,"sample_name":sample_name,
-                                                  "owner_email":owner_email."tdna":tdna}
+                                                  "owner_email":owner_email,"tdna":tdna}
 
         self.projects = projects
 
@@ -148,14 +145,22 @@ class project(object):
             # Private Method Call
             self.convertSampleSheet()
 
-    def runConfigureBclToFastq(self):
+    def runConfigureBclToFastq(self,user_commands_config=None):
 
         # Change current Working Directory
         os.chdir(self.basecalls)
         print("Current working dir is %s" % os.getcwd())
 
         print("Running Configure Bcl to Fastq command")
-        configureCommand = ["configureBclToFastq.pl","--output-dir","../../../" + self.bcl_output_dir,"--sample-sheet", os.path.basename(self.sample_sheet)]
+
+        if not user_commands_config:
+        
+            configureCommand = ["configureBclToFastq.pl","--output-dir","../../../" + \
+                                self.bcl_output_dir,"--sample-sheet", \
+                                os.path.basename(self.sample_sheet)]
+        else:
+            configureCommand = user_commands_config.strip().split()
+
         print("Configure Command: %s" % " ".join(configureCommand))
         system_call(configureCommand,"Error at configureBclToFastq.pl")
 
@@ -613,11 +618,11 @@ class project(object):
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path="/mnt/thumper-e4/illumina_runs/130307_JONAS_2149_AC1LRUACXX",sample_sheet="SampleSheet_JONAS_2149_ROSA_NoINDEX.csv",bcl_output_dir="UnalignedNew")
-
+    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130321_JONAS_2152_AC1N6MACXX",\
+                sample_sheet   = "SampleSheet_TDNA_No_Filter_test.csv",\
+                bcl_output_dir = "Unaligned")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.grabUndetermined()
-    # p.bowtieProjects()
-    # p.importProjects2Annoj()
+    p.bowtieProjects()
+    p.importProjects2Annoj()

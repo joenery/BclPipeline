@@ -88,7 +88,7 @@ def bowtie_folder(folder,options="--local -p 10",bowtie_shell_call="bowtie2",ind
         print("\tBowtie-ing R2's")
 
         echo_R2 = "echo %s >> bowtie.stats" % ("\t" + " ".join(command_R2))
-        subprocess.call(echo_R1,shell=True)
+        subprocess.call(echo_R2,shell=True)
 
         system_call(command_R2,"Died at Bowtie2 R2 step")
 

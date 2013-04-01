@@ -7,7 +7,7 @@ import signal
 import subprocess
 
 # My Modules
-from import2annojsimple import local2mysql
+from import2annojsimple import *
 from bowtieSimple       import bowtie_folder
 
 class MyParser(argparse.ArgumentParser):
@@ -80,7 +80,9 @@ if __name__=="__main__":
     folders = get_folder_paths(project)
     
     for folder in folders:
-        print("Working on %s" % (folder)) 
+        print("Working on %s" % (folder))
+
+        tdna = True if "tdna" in folder.lower() else False 
 
         current_folder = folder
 
@@ -102,4 +104,5 @@ if __name__=="__main__":
             os.chdir(current_folder + "/annoj")
 
             # We've moved one folder down and the path to the file reflects this
-            local2mysql("../bowtie.R1.sam",host,database,tablename,mysql_user,mysql_password)
+            getChromosomeFiles("../bowtie.R1.sam",tdna_filter=tdna)
+            upload2mysql(host,database,tablename,mysql_user,mysql_password,tdna_filter=tdna)

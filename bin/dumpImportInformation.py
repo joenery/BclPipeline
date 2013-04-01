@@ -66,6 +66,38 @@ class sampleSheetParser(project):
 
                 track_def.write("\n\n],\n")
 
+            with open(project + ".tdnaFilter.trackDefinitions","w") as track_def:
+                active_tracks = []
+
+                track_def.write("tracks : [\n\n")
+
+                for sample in self.projects[project]:
+                    tablename = sample + "_tDNA_Filter"
+                    tdna      = self.projects[project][sample]["tdna"]
+
+                    if tdna:
+                        active_tracks.append(tablename)
+
+                        track_def.write("{\n")
+                        track_def.write(" id: '%s',\n"   % tablename)
+                        track_def.write(" name: '%s',\n" % tablename)
+                        track_def.write(" type: 'ReadsTrack',\n")
+                        track_def.write(" path: 'NA',\n")
+                        track_def.write(" data: '%s/%s',\n" % (fetcher_dir,tablename + ".php"))
+                        track_def.write(" height: '90', \n")
+                        track_def.write(" scale: 0.03\n")
+                        track_def.write("},\n")
+
+                track_def.write("\n\n],\n\nactive : [\n")
+
+                active_tracks.sort(key= lambda x: ("salk".find(x[0].lower()),int(x[1:3])))
+
+                for sample in active_tracks:
+                    track_def.write("'" + sample + "',")
+
+                track_def.write("\n\n],\n")
+
+
         os.chdir(top_dir)
 
     def getFetchers(self,includes_dir):
@@ -86,6 +118,7 @@ class sampleSheetParser(project):
                 tablename = sample
                 database  = self.projects[project][sample]["database"]
                 host      = self.projects[project][sample]["destination"]
+                tdna      = self.projects[project][sample]["tdna"]
 
                 with open(tablename + ".php","w") as fetcher:
                     fetcher.write("<?php\n")
@@ -96,6 +129,18 @@ class sampleSheetParser(project):
                     fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
                     fetcher.write("require_once '%s/common_reads.php';\n" % (includes_dir))
                     fetcher.write("?>\n")
+
+                if tdna:
+                    tablename = tablename + "_tDNA_Filter"
+                    with open(tablename + ".php","w") as fetcher:
+                        fetcher.write("<?php\n")
+                        fetcher.write("$append_assembly = false;\n")
+                        fetcher.write("$table = '%s.%s';\n" % (database,tablename) )
+                        fetcher.write("$title = '%s';\n" % (tablename))
+                        fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
+                        fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
+                        fetcher.write("require_once '%s/common_reads.php';\n" % (includes_dir))
+                        fetcher.write("?>\n")
 
         os.chdir(top_dir)
 

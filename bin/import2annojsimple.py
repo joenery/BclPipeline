@@ -17,6 +17,8 @@ class MyParser(argparse.ArgumentParser):
         self.print_help()
         sys.exit(2)
 
+
+# This has been removed from the BclPipeline but NOT from project2bowtie2annoj
 def local2mysql(sam,host,database,tablename,mysql_user,mysql_password,skip_to_upload=False,tdna_filter=False):
     
     # assume the files are straight out of Bowtie 2 with no options and they contain unmapped reads
@@ -203,6 +205,7 @@ def local2mysql(sam,host,database,tablename,mysql_user,mysql_password,skip_to_up
         track_def.write(" scale: 0.03\n")
         track_def.write("},\n")
 
+# These will be used as the canonical functions for uploading to the MySQL database
 def getAssemblyNameFromSam(chromosome_line):
 
     if "Chr" in chromosome_line or "chr" in chromosome_line and not "chromosome" in chromosome_line and not "Chromosome" in chromosome_line:

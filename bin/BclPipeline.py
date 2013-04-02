@@ -14,6 +14,7 @@ import MySQLdb as mdb
 # My Modules
 from guts import *
 
+
 #--------------------- Script Specific Functions ----------------- #
 
 
@@ -103,7 +104,7 @@ if __name__=="__main__":
     advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet.csv")
     advanced.add_argument("-o","--output-dir",  help = "NAME of FOLDER to create at the top of the RUN folder provided. DEFAULT: Unaligned",default="Unaligned") 
     advanced.add_argument("-a","--admin-only",  help = "Send notifications to Admins only. Helpful for debugging. DEFAULT: off",action = "store_true")
-    advanced.add_argument("-c","--config-file", help = "Path to optional config file for configureBclToFastq.py DEFAULT: None", default=None)
+    advanced.add_argument("-b","--bcl-options", help = "A string in quotation marks that contain the options you would like to run DEFAULT: None", default="")
 
     #---------------------------- Parse Command Line Options ---------------------------- #
     
@@ -115,7 +116,9 @@ if __name__=="__main__":
     sample_sheet     = command_line_options["sample_sheet"]
     bcl_output_dir   = command_line_options["output_dir"]
     admin_only       = command_line_options["admin_only"]
-    config_file      = command_line_options["config_file"]
+    bcl_options      = command_line_options["bcl_options"]
+
+    print bcl_options
 
     #-------------------------- Checking the options! ------------------------------------ #
     if not run:
@@ -125,9 +128,6 @@ if __name__=="__main__":
     if not os.path.exists(run):
         print("\nIt looks like that Path: %s doesn't exist. Try again.\n" % (run))
         sys.exit(1)
-
-    if config_file:
-        user_commands_config = parseConfigFile(config_file)
 
     # -------------------------- Parse SampleSheet.csv  ------------------------------- #
     
@@ -177,10 +177,8 @@ if __name__=="__main__":
                 p.bclStartEmailBlast()            
 
         print("Starting BCL Analysis")
-        if config_file:
-            p.runConfigureBclToFastq(user_commands_config)
-        else:
-            p.runConfigureBclToFastq()
+        p.runConfigureBclToFastq(bcl_options)
+
         print("Finished BCL Analysis")
 
         print("Running Bowtie Analysis")

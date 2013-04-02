@@ -9,7 +9,7 @@ from bowtieSimple import bowtie_folder
 from import2annojsimple import *
 from emailnotifications  import notifications
 
-def system_call(command,err_message,admin_message=False,extra=None):
+def system_call(command,err_message,admin_message=False,extra=None,shell=False):
     """
     A wrapper for subprocess.call()
 
@@ -19,7 +19,10 @@ def system_call(command,err_message,admin_message=False,extra=None):
     Hides this logic from the rest of the script since shell calls are made frequently
     """
 
-    val = subprocess.call(command)
+    if not shell:
+        val = subprocess.call(command)
+    else:
+        val = subprocess.call(" ".join(command),shell=shell)
 
     if (val != 0 and admin_message == False) or (val != 0 and extra==None and admin_message == True):
         print("".join(["\n",err_message,"\n","Terminating Script"]))
@@ -145,30 +148,27 @@ class project(object):
             # Private Method Call
             self.convertSampleSheet()
 
-    def runConfigureBclToFastq(self,user_commands_config=None):
+    def runConfigureBclToFastq(self,bcl_options):
 
         # Change current Working Directory
         os.chdir(self.basecalls)
         print("Current working dir is %s" % os.getcwd())
 
         print("Running Configure Bcl to Fastq command")
-
-        if not user_commands_config:
         
-            configureCommand = ["configureBclToFastq.pl","--output-dir","../../../" + \
-                                self.bcl_output_dir,"--sample-sheet", \
-                                os.path.basename(self.sample_sheet)]
-        else:
-            configureCommand = user_commands_config.strip().split()
+        configureCommand = ["configureBclToFastq.pl",bcl_options,
+                            "--output-dir","../../../" + \
+                            self.bcl_output_dir,"--sample-sheet", \
+                            os.path.basename(self.sample_sheet)]
 
         print("Configure Command: %s" % " ".join(configureCommand))
-        system_call(configureCommand,"Error at configureBclToFastq.pl")
+        subprocess.call(" ".join(configureCommand),shell=True)
 
         # Change to output dir
         os.chdir(self.run + "/" + self.bcl_output_dir)
         print("Running make command in %s" %(os.getcwd()))
 
-        system_call(["make","-j","8"],"Make Failed",admin_message=True,extra=self)
+        system_call(["make","-j","8"],"Make Failed",admin_message=True,extra=self,shell=True)
 
         # You can Rip this out when we move to the all index system.
         # If there are Samples With Undetermined Indicies

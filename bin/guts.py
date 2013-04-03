@@ -143,10 +143,12 @@ class project(object):
         # Parse Emails
         self.getEmailsAndProjects()
 
-        if samples_with_no_indexes:
+        # We've moved away from using TDNA with no indexes.
+        # If you need that functionality enable it here
+        # if samples_with_no_indexes:
 
-            # Private Method Call
-            self.convertSampleSheet()
+        #     # Private Method Call
+        #     self.convertSampleSheet()
 
     def runConfigureBclToFastq(self,bcl_options):
 

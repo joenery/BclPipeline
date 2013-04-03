@@ -52,8 +52,8 @@ def watchRunFolder(run,sleep):
                 if not first_line:
                     print("Real Time Analysis in process. Time %s" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
 
-                elif iteration != 0 and current_line != prev_line:
-                    print("Checked file at %s and it has been changed." % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
+                else:
+                    print("Checked file at %s and the RTAComplete.txt shows that RTA has finished" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
                     print("Moving on to Bcl Analysis")
                     break
 

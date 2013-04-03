@@ -47,21 +47,15 @@ def watchRunFolder(run,sleep):
         
         else:
             with open(RTAcomplete,"r") as input_file:
-                current_line = input_file.readline().strip()
+                first_line = input_file.readline().strip()
 
-                if iteration == 0:
-                    print("Real Time Analysis has started. Time %s" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
-                    prev_line = current_line
-                    iteration +=1
+                if not first_line:
+                    print("Real Time Analysis in process. Time %s" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
 
                 elif iteration != 0 and current_line != prev_line:
                     print("Checked file at %s and it has been changed." % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
                     print("Moving on to Bcl Analysis")
-
                     break
-
-                else:
-                    print("Waiting for Real Time Analysis to Finish. Time: %s" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
 
 def parseConfigFile(path_to_file):
     """

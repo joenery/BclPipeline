@@ -158,37 +158,38 @@ if __name__=="__main__":
         print("Daemon is now running")
 
         if not no_notifications:
-            p.adminEmailBlast("Daemon running for %s" % (run),"")
+            p.adminRunInfoBlast("Daemon running","Daemon is running")
 
-        if no_watch == False:
-            # Checks every Half Hour
-            watchRunFolder(run,1800)
+        # if no_watch == False:
+        #     # Checks every Half Hour
+        #     watchRunFolder(run,1800)
 
-        if not no_notifications:
-            p.adminEmailBlast("Bcl Started for %s" % (run),"")
+        # if not no_notifications:
+        #     p.adminRunInfoBlast("Bcl Has Started","configureBclToFastq.py is running")
 
-            if not admin_only:
-                p.bclStartEmailBlast()            
+        #     if not admin_only:
+        #         p.bclStartEmailBlast()            
 
-        print("Starting BCL Analysis")
-        p.runConfigureBclToFastq(bcl_options)
+        # print("Starting BCL Analysis")
+        # p.runConfigureBclToFastq(bcl_options)
+        # p.adminRunInfoBlast("configureBclToFastq.py Complete","BclPipeline will now perform Bowtie and MySQL upload for selected samples")
 
-        print("Finished BCL Analysis")
+        # print("Finished BCL Analysis")
 
-        print("Running Bowtie Analysis")
-        p.bowtieProjects()
+        # print("Running Bowtie Analysis")
+        # p.bowtieProjects()
 
-        print("Running Annoj prep and upload")
-        p.importProjects2Annoj()
+        # print("Running Annoj prep and upload")
+        # p.importProjects2Annoj()
 
-        # Alert the Masses!
-        if not no_notifications:
-            p.adminEmailBlas("Bcl Finished for %s" % (run),"")
+        # # Alert the Masses!
+        # if not no_notifications:
+        #     p.adminRunInfoBlast("BclPipeline Complete","The entire BclPipeline is complete (including Bowtie and Annoj Upload for selected samples)")
 
-            if not admin_only:
-                p.bclCompleteEmailBlast()
+        #     if not admin_only:
+        #         p.bclCompleteEmailBlast()
 
-        # Clean up
-        print("Finished BCL Pipeline :-]")
-        run_log.close()
+        # # Clean up
+        # print("Finished BCL Pipeline :-]")
+        # run_log.close()
         

@@ -3,6 +3,7 @@ import os
 import sys
 from collections import defaultdict
 import re
+from socket import gethostname
 
 # My modules
 from bowtieSimple import bowtie_folder
@@ -71,6 +72,9 @@ class project(object):
 
         # Check undetermined Indices?
         self.undetermined = False
+
+        # Get Host name
+        self.host = gethostname()
 
     def parseSampleSheet(self):
         """
@@ -291,6 +295,25 @@ class project(object):
             message = "%s has completed its analysis!\n\nHere are the Paths to your Projects:\n\n%s" % (os.path.basename(self.run),"\n".join(projects))
 
             self.notifications.send_message(TO=[email],SUBJECT=subject,TEXT=message)
+
+    def adminRunInfoBlast(self,subject_message,inner_message):
+        """
+        """
+        try:
+            self.notifications
+        except AttributeError:
+            self.notifications = notifications()
+
+        projects = ["- " + project for project in self.projects.keys()]
+        projects.sort()
+
+        subject = "%s for %s" % (subject_message,os.path.basename(self.run))
+
+        message = "%s for %s\n\nPATH on %s to the run:\n%s\n\nProjects in the run:\n%s" % (inner_message,os.path.basename(self.run),self.host.upper(),self.run,"\n".join(projects))
+
+        for address in self.notifications.admin:
+
+            self.notifications.send_message(TO=[address],SUBJECT=subject,TEXT=message)
 
     # --------------- Private Methods
     # These are subroutines that the public methods call

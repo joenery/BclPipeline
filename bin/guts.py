@@ -40,7 +40,7 @@ def system_call(command,err_message,admin_message=False,extra=None,shell=False):
 
 class project(object):
 
-    # --------------- Public Methods
+    # ---- Public Methods
     # These are the methods that are meant to be called
     # by the user in scripts.
 
@@ -249,6 +249,14 @@ class project(object):
                     getChromosomeFiles(input_file)
                     upload2mysql(destination,database,sample,mysql_user,mysql_password)              
 
+            # This could be extended for all projects if need be. However,
+            # that might be a pain in the ass.
+            if "tdna" in project.lower():
+                """
+                call getTrackDefinitions
+                call getFetchers
+                """
+
     def adminEmailBlast(self,subject,text):
         """
         """
@@ -315,7 +323,7 @@ class project(object):
 
             self.notifications.send_message(TO=[address],SUBJECT=subject,TEXT=message)
 
-    # --------------- Private Methods
+    # ---- Private Methods
     # These are subroutines that the public methods call
     # Modify here at your own risk
 
@@ -418,6 +426,7 @@ class project(object):
 
     def grabUndetermined(self):
         """
+        # NOTE: This code has since been deprocated. It is still avaiable in case there is a need for this method
         This code is ugly as sin. Sorry :-(
         """
 
@@ -640,14 +649,140 @@ class project(object):
         except AttributeError:
             self.notifications = notifications()
 
+    def getTrackDefintionsAndFetchers(self,project):
+        """
+        This is optimized for TDNA 20k, 30k etcetc formats ONLY
+        """
+        fetcher_dir = """FETCHER_DIR"""
+        top_dir = os.getcwd()
+
+        # Make dir
+        os.chdir(os.path.join(self.run,os.path.join(self.bcl_output_dir,"Project_" + project)))
+        make_dir = "mkdir complete_fetchers_and_definitions"
+        subprocess.call(make_dir,shell=True)
+        os.chdir("complete_fetchers_and_definitions")
+
+        # Assuming that the first number in a sample name relates to the
+        # K numbers... eg all the 20's belong to one pool, 30's to another
+        pools = []
+
+        for sample in self.projects[project]:
+            index = self.indexOfFirstDigit(sample)
+            pool_number = sample[index]
+
+            if pool_number not in pools:
+                pools.append(pool_number)
+
+        # loop through pools and make Track definitions for
+        # non filtered and Filtered
+        for pool in pools:
+            regular_track_definitions     = open(project + "." + pool + ".trackdefintions","w")
+            tdna_filter_track_definitions = open(project + "." + pool + ".tdnafilter.trackdefinitions","w")
+
+            active_filter = []
+            active        = []
+
+            regular_track_definitions.write("tracks : [\n\n")
+            regular_track_definitions.write("""//Models\n{\nid   : 'tair9',\nname : 'Gene Models',\ntype : 'ModelsTrack',\npath : 'Annotation models',\ndata : '../../fetchers/models/tair9.php',\nheight : 80,\nshowControls : true\n},\n""")
+            tdna_filter_track_definitions.write("tracks : [\n\n")
+            tdna_filter_track_definitions.write("""//Models\n{\nid   : 'tair9',\nname : 'Gene Models',\ntype : 'ModelsTrack',\npath : 'Annotation models',\ndata : '../../fetchers/models/tair9.php',\nheight : 80,\nshowControls : true\n},\n""")
+
+            for sample in self.projects[project]:
+                if sample[self.indexOfFirstDigit(sample)] != pool:
+                    continue
+
+                tablename = sample
+                active.append(tablename)
+                active_filter.append(tablename + "_tDNA_Filter")
+
+                # Non Filtered
+                regular_track_definitions.write("{\n")
+                regular_track_definitions.write(" id: '%s',\n"   % tablename)
+                regular_track_definitions.write(" name: '%s',\n" % tablename)
+                regular_track_definitions.write(" type: 'ReadsTrack',\n")
+                regular_track_definitions.write(" path: 'NA',\n")
+                regular_track_definitions.write(" data: '%s/%s',\n" % (fetcher_dir,tablename + ".php"))
+                regular_track_definitions.write(" height: '25', \n")
+                regular_track_definitions.write(" scale: 0.1\n")
+                regular_track_definitions.write("},\n")
+
+                # Filtered
+                tdna_filter_track_definitions.write("{\n")
+                tdna_filter_track_definitions.write(" id: '%s',\n"   % (tablename + "_tDNA_Filter"))
+                tdna_filter_track_definitions.write(" name: '%s',\n" % (tablename + "_tDNA_Filter"))
+                tdna_filter_track_definitions.write(" type: 'ReadsTrack',\n")
+                tdna_filter_track_definitions.write(" path: 'NA',\n")
+                tdna_filter_track_definitions.write(" data: '%s/%s',\n" % (fetcher_dir,tablename + "_tDNA_Filter.php"))
+                tdna_filter_track_definitions.write(" height: '25', \n")
+                tdna_filter_track_definitions.write(" scale: 0.1\n")
+                tdna_filter_track_definitions.write("},\n")
+
+        regular_track_definitions.write("\n\n],\n\nactive : [\n'tair9',")
+        tdna_filter_track_definitions.write("\n\n],\n\nactive : [\n'tair9',")
+
+        active.sort(key= lambda x:("salk".find(x[0].lower()),int(x[1:3])))
+        active_filter.sort(key= lambda x:("salk".find(x[0].lower()),int(x[1:3])))
+
+        for sample in active:
+            regular_track_definitions.write("'" + sample + "',")
+
+        for sample in active_filter:
+            tdna_filter_track_definitions.write("'" + sample + "',")
+
+        regular_track_definitions.write("\n]\n")
+        tdna_filter_track_definitions.write("\n]\n")
+
+        # Dump The Fetchers
+        for sample in self.projects[project]:
+            tablename = sample
+            database  = self.projects[project][sample]["database"]
+            host      = self.projects[project][sample]["destination"]
+            tdna      = self.projects[project][sample]["tdna"]
+            includes_dir = "../.."
+
+            with open(tablename + ".php","w") as fetcher:
+                fetcher.write("<?php\n")
+                fetcher.write("$append_assembly = false;\n")
+                fetcher.write("$table = '%s.%s';\n" % (database,tablename) )
+                fetcher.write("$title = '%s';\n" % (tablename))
+                fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
+                fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
+                fetcher.write("require_once '%s/common_reads.php';\n" % (includes_dir))
+                fetcher.write("?>\n")
+
+
+            tablename = tablename + "_tDNA_Filter"
+            with open(tablename + ".php","w") as fetcher:
+                fetcher.write("<?php\n")
+                fetcher.write("$append_assembly = false;\n")
+                fetcher.write("$table = '%s.%s';\n" % (database,tablename) )
+                fetcher.write("$title = '%s';\n" % (tablename))
+                fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
+                fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
+                fetcher.write("require_once '%s/common_reads.php';\n" % (includes_dir))
+                fetcher.write("?>\n")
+
+        os.chdir(top_dir)
+
+    @staticmethod
+    def indexOfFirstDigit(string):
+        for i,char in enumerate(string):
+            if char.isdigit():
+                return i
+        else:
+            return -1
+
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130321_JONAS_2152_AC1N6MACXX",\
-                sample_sheet   = "SampleSheet_TDNA_No_Filter_test.csv",\
+    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130329_HAL_1233_BD1RJNACXX",\
+                sample_sheet   = "SampleSheet_130329_HAL_1233_BD1RJNACXX.csv",\
                 bcl_output_dir = "Unaligned")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.bowtieProjects()
-    p.importProjects2Annoj()
+    p.getTrackDefintionsAndFetchers("tDNA")
+
+
+
+

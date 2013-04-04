@@ -44,6 +44,7 @@ class sampleSheetParser(project):
 
             with open(project + ".trackDefinitions","w") as track_def:
                 track_def.write("tracks : [\n\n")
+                track_def.write("""//Models\n{\nid   : 'tair9',\nname : 'Gene Models',\ntype : 'ModelsTrack',\npath : 'Annotation models',\ndata : '../../fetchers/models/tair9.php',\nheight : 80,\nshowControls : true\n},\n""")
 
                 for sample in self.projects[project]:
                     tablename = sample
@@ -55,11 +56,11 @@ class sampleSheetParser(project):
                     track_def.write(" type: 'ReadsTrack',\n")
                     track_def.write(" path: 'NA',\n")
                     track_def.write(" data: '%s/%s',\n" % (fetcher_dir,tablename + ".php"))
-                    track_def.write(" height: '90', \n")
-                    track_def.write(" scale: 0.03\n")
+                    track_def.write(" height: '25', \n")
+                    track_def.write(" scale: 0.1\n")
                     track_def.write("},\n")
 
-                track_def.write("\n\n],\n\nactive : [\n")
+                track_def.write("\n\n],\n\nactive : [\n'tair9',")
 
                 for sample in active_tracks:
                     track_def.write("'" + sample + "',")

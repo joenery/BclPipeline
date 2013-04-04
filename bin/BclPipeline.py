@@ -90,13 +90,12 @@ if __name__=="__main__":
 
     mandatory.add_argument("-r","--run",help = "Absolute path to the run folder you would like to watch and run Bcl on.")
 
-    optional.add_argument("-nn","--no-notifications",help="Turn notifications off. DEFAULT: notifications are on",
-                                                     action="store_true") 
+    optional.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet.csv")
+    optional.add_argument("-o","--output-dir",  help = "NAME of FOLDER to create at the top of the RUN folder provided. DEFAULT: Unaligned",default="Unaligned")
 
-    advanced.add_argument("-s","--sample-sheet",help = "Name of the SampleSheet you'd like to use. DEFAULT: SampleSheet",default="SampleSheet.csv")
-    advanced.add_argument("-o","--output-dir",  help = "NAME of FOLDER to create at the top of the RUN folder provided. DEFAULT: Unaligned",default="Unaligned") 
+    advanced.add_argument("-b","--bcl-options", help = "A string in quotation marks that contain the options you would like to run DEFAULT: None", default="") 
+    advanced.add_argument("-nn","--no-notifications",help="Turn notifications off. DEFAULT: notifications are on", action="store_true")
     advanced.add_argument("-a","--admin-only",  help = "Send notifications to Admins only. Helpful for debugging. DEFAULT: off",action = "store_true")
-    advanced.add_argument("-b","--bcl-options", help = "A string in quotation marks that contain the options you would like to run DEFAULT: None", default="")
 
     #---------------------------- Parse Command Line Options ---------------------------- #
     

@@ -255,15 +255,15 @@ class project(object):
                 self.getTrackDefintionsAndFetchers(project)
 
     # Method Below is Deprocated
-    def adminEmailBlast(self,subject,text):
-        """
-        """
-        try: 
-            self.notifications
-        except AttributeError:
-            self.notifications = notifications()
+    # def adminEmailBlast(self,subject,text):
+    #     """
+    #     """
+    #     try: 
+    #         self.notifications
+    #     except AttributeError:
+    #         self.notifications = notifications()
         
-        self.notifications.admin_message(subject,text)
+    #     self.notifications.admin_message(subject,text)
 
     def bclStartEmailBlast(self):
         """
@@ -315,7 +315,7 @@ class project(object):
 
         subject = "%s for %s" % (subject_message,os.path.basename(self.run))
 
-        message = "%s for %s\n\nPATH on %s to the run:\n%s\n\nProjects in the run:\n%s" % (inner_message,os.path.basename(self.run),self.host.upper(),self.run,"\n".join(projects))
+        message = "%s for %s\n\nPATH on %s:\n%s\n\nPROJECTS:\n%s" % (inner_message,os.path.basename(self.run),self.host.upper(),self.run,"\n".join(projects))
 
         for address in self.notifications.admin:
 

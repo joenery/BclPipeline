@@ -39,8 +39,6 @@ def watchRunFolder(run,sleep):
 
     while True:
 
-        time.sleep(sleep)
-
         if not os.path.isfile(RTAcomplete):
             print("Real Time Analysis has not begun yet. Time: %s" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
             continue
@@ -56,6 +54,8 @@ def watchRunFolder(run,sleep):
                     print("Checked file at %s and the RTAComplete.txt shows that RTA has finished" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
                     print("Moving on to Bcl Analysis")
                     break
+
+        time.sleep(sleep)
 
 def parseConfigFile(path_to_file):
     """
@@ -90,8 +90,6 @@ if __name__=="__main__":
 
     mandatory.add_argument("-r","--run",help = "Absolute path to the run folder you would like to watch and run Bcl on.")
 
-    optional.add_argument("-nw","--no-watch",help="If the run has already completed and you would like to just run Bcl etc then turn this flag on. DEFAULT: off",\
-                         action="store_true")
     optional.add_argument("-nn","--no-notifications",help="Turn notifications off. DEFAULT: notifications are on",
                                                      action="store_true") 
 
@@ -105,7 +103,6 @@ if __name__=="__main__":
     command_line_options = vars(parser.parse_args())
 
     run              = command_line_options["run"]
-    no_watch         = command_line_options["no_watch"]
     no_notifications = command_line_options["no_notifications"]
     sample_sheet     = command_line_options["sample_sheet"]
     bcl_output_dir   = command_line_options["output_dir"]
@@ -160,36 +157,34 @@ if __name__=="__main__":
         if not no_notifications:
             p.adminRunInfoBlast("Daemon running","Daemon is running")
 
-        # if no_watch == False:
-        #     # Checks every Half Hour
-        #     watchRunFolder(run,1800)
+        # Checks Every Half Hour. First check is instant
+        watchRunFolder(run,1800)
 
-        # if not no_notifications:
-        #     p.adminRunInfoBlast("Bcl Has Started","configureBclToFastq.py is running")
+        if not no_notifications:
+            p.adminRunInfoBlast("Bcl Has Started","configureBclToFastq.py is running")
 
-        #     if not admin_only:
-        #         p.bclStartEmailBlast()            
+            if not admin_only:
+                p.bclStartEmailBlast()            
 
-        # print("Starting BCL Analysis")
-        # p.runConfigureBclToFastq(bcl_options)
-        # p.adminRunInfoBlast("configureBclToFastq.py Complete","BclPipeline will now perform Bowtie and MySQL upload for selected samples")
+        print("Starting BCL Analysis")
+        p.runConfigureBclToFastq(bcl_options)
+        p.adminRunInfoBlast("configureBclToFastq.py Complete","BclPipeline will now perform Bowtie and MySQL upload for selected samples.")
+        print("Finished BCL Analysis")
 
-        # print("Finished BCL Analysis")
+        print("Running Bowtie Analysis")
+        p.bowtieProjects()
 
-        # print("Running Bowtie Analysis")
-        # p.bowtieProjects()
+        print("Running Annoj prep and upload")
+        p.importProjects2Annoj()
 
-        # print("Running Annoj prep and upload")
-        # p.importProjects2Annoj()
+        # Alert the Masses!
+        if not no_notifications:
+            p.adminRunInfoBlast("BclPipeline Complete","The entire BclPipeline is complete (including Bowtie and Annoj upload for selected samples)")
 
-        # # Alert the Masses!
-        # if not no_notifications:
-        #     p.adminRunInfoBlast("BclPipeline Complete","The entire BclPipeline is complete (including Bowtie and Annoj Upload for selected samples)")
+            if not admin_only:
+                p.bclCompleteEmailBlast()
 
-        #     if not admin_only:
-        #         p.bclCompleteEmailBlast()
-
-        # # Clean up
-        # print("Finished BCL Pipeline :-]")
-        # run_log.close()
+        # Clean up
+        print("Finished BCL Pipeline :-]")
+        #run_log.close()
         

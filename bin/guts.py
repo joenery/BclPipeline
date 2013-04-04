@@ -254,6 +254,7 @@ class project(object):
             if "tdna" in project.lower():
                 self.getTrackDefintionsAndFetchers(project)
 
+    # Method Below is Deprocated
     def adminEmailBlast(self,subject,text):
         """
         """

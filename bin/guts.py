@@ -216,6 +216,7 @@ class project(object):
 
         for project in self.projects:
 
+            # Actual API call to Import2AnnojSimple
             for sample in self.projects[project]:
                 print("Working on %s from Project %s" % (sample,project))
 
@@ -249,13 +250,9 @@ class project(object):
                     getChromosomeFiles(input_file)
                     upload2mysql(destination,database,sample,mysql_user,mysql_password)              
 
-            # This could be extended for all projects if need be. However,
-            # that might be a pain in the ass.
+            # This Method is optimized only for TDNA 
             if "tdna" in project.lower():
-                """
-                call getTrackDefinitions
-                call getFetchers
-                """
+                self.getTrackDefintionsAndFetchers(project)
 
     def adminEmailBlast(self,subject,text):
         """

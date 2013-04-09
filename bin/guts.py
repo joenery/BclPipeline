@@ -33,9 +33,9 @@ def system_call(command,err_message,admin_message=False,extra=None,shell=False):
         print("".join(["\n",err_message,"\n","Terminating Script"]))
 
         subject = "Pipeline failed on %s" % (os.path.basename(extra.run))
-        text    = "Error Message--> %s\n\nPath to run--> %s" % (err_message,extra.run)
+        text    = "Error Message--> %s" % (err_message)
 
-        extra.adminEmailBlast(subject=subject,text=text)
+        extra.adminRunInfoBlast(subject,text)
         sys.exit(1)
 
 class project(object):
@@ -179,9 +179,9 @@ class project(object):
         # You can Rip this out when we move to the all index system.
         # If there are Samples With Undetermined Indicies
         # Filter and move the Samples in to the appropriate Project
-
-        if self.undetermined:
-            self.grabUndetermined()
+        # DEPROCATED
+        # if self.undetermined:
+        #     self.grabUndetermined()
 
     def bowtieProjects(self):
 
@@ -242,16 +242,19 @@ class project(object):
                 subprocess.call(["mkdir","annoj"])
                 os.chdir("annoj")
 
-                if tdna:
-                    getChromosomeFiles(input_file,tdna_filter=True)
-                    upload2mysql(destination,database,sample,mysql_user,mysql_password,tdna_filter=True)
+                # Since some samples of the same project will be rerun there needs to be a way to differentiate
+                # between them. The RUN Names themselves will be unique so that will be tagged at the end of the 
+                # sample name.
 
-                else:
-                    getChromosomeFiles(input_file)
-                    upload2mysql(destination,database,sample,mysql_user,mysql_password)              
+                run_path = self.run
+                run_name = os.path.basename(self.run[:-1]) if self.run[-1] == "/" else os.path.basename(self.run)
+                sample += "_" + run_name
+
+                getChromosomeFiles(input_file,tdna_filter=tdna)
+                upload2mysql(destination,database,sample,mysql_user,mysql_password,tdna_filter=tdna)
 
             # This Method is optimized only for TDNA 
-            if "tdna" in project.lower():
+            if tdna:
                 self.getTrackDefintionsAndFetchers(project)
 
     # Method Below is Deprocated

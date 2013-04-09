@@ -41,7 +41,6 @@ def watchRunFolder(run,sleep):
 
         if not os.path.isfile(RTAcomplete):
             print("Real Time Analysis has not begun yet. Time: %s" % time.strftime("%m-%d-%y %H:%M:%S",time.localtime()))
-            continue
         
         else:
             with open(RTAcomplete,"r") as input_file:
@@ -160,14 +159,14 @@ if __name__=="__main__":
         watchRunFolder(run,1800)
 
         if not no_notifications:
-            p.adminRunInfoBlast("Bcl Has Started","configureBclToFastq.py is running")
-
-            if not admin_only:
-                p.bclStartEmailBlast()            
+            p.adminRunInfoBlast("Bcl Has Started","configureBclToFastq.py is running")          
 
         print("Starting BCL Analysis")
         p.runConfigureBclToFastq(bcl_options)
-        p.adminRunInfoBlast("configureBclToFastq.py Complete","BclPipeline will now perform Bowtie and MySQL upload for selected samples.")
+       
+        if not no_notifications:
+            p.adminRunInfoBlast("configureBclToFastq.py Complete","BclPipeline will now perform Bowtie and MySQL upload for selected samples.")
+
         print("Finished BCL Analysis")
 
         print("Running Bowtie Analysis")

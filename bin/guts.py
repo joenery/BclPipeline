@@ -257,17 +257,6 @@ class project(object):
             if tdna:
                 self.getTrackDefintionsAndFetchers(project)
 
-    # Method Below is Deprocated
-    # def adminEmailBlast(self,subject,text):
-    #     """
-    #     """
-    #     try: 
-    #         self.notifications
-    #     except AttributeError:
-    #         self.notifications = notifications()
-        
-    #     self.notifications.admin_message(subject,text)
-
     def bclStartEmailBlast(self):
         """
         """
@@ -691,6 +680,10 @@ class project(object):
             for sample in self.projects[project]:
                 if sample[self.indexOfFirstDigit(sample)] != pool:
                     continue
+                
+                run_path = self.run
+                run_name = os.path.basename(self.run[:-1]) if self.run[-1] == "/" else os.path.basename(self.run)
+                sample += "_" + run_name
 
                 tablename = sample
                 active.append(tablename)
@@ -721,6 +714,8 @@ class project(object):
         regular_track_definitions.write("\n\n],\n\nactive : [\n'tair9',")
         tdna_filter_track_definitions.write("\n\n],\n\nactive : [\n'tair9',")
 
+
+        # THIS NEEDS TO BE MORE GENERAL!
         active.sort(key= lambda x:("salk".find(x[0].lower()),int(x[1:3])))
         active_filter.sort(key= lambda x:("salk".find(x[0].lower()),int(x[1:3])))
 
@@ -730,16 +725,19 @@ class project(object):
         for sample in active_filter:
             tdna_filter_track_definitions.write("'" + sample + "',")
 
-        regular_track_definitions.write("\n]\n")
-        tdna_filter_track_definitions.write("\n]\n")
+        regular_track_definitions.write("\n],\n")
+        tdna_filter_track_definitions.write("\n],\n")
 
         # Dump The Fetchers
         for sample in self.projects[project]:
-            tablename = sample
+            run_path = self.run
+            run_name = os.path.basename(self.run[:-1]) if self.run[-1] == "/" else os.path.basename(self.run)
+
+            tablename = sample + "_" + run_name
             database  = self.projects[project][sample]["database"]
             host      = self.projects[project][sample]["destination"]
             tdna      = self.projects[project][sample]["tdna"]
-            includes_dir = "../.."
+            includes_dir = "../../includes"
 
             with open(tablename + ".php","w") as fetcher:
                 fetcher.write("<?php\n")
@@ -776,14 +774,10 @@ class project(object):
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130329_HAL_1233_BD1RJNACXX",\
-                sample_sheet   = "SampleSheet_130329_HAL_1233_BD1RJNACXX.csv",\
-                bcl_output_dir = "Unaligned")
+    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130405_LAMARCK_3152_BC1N7KACXX",\
+                sample_sheet   = "SampleSheet_130405_Lamarck_3153_with_clones.csv",\
+                bcl_output_dir = "UnalignedTDNA")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.getTrackDefintionsAndFetchers("tDNA")
-
-
-
-
+    p.getTrackDefintionsAndFetchers("tDNA_Salk90k")

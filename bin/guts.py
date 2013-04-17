@@ -136,11 +136,18 @@ class project(object):
                 else:
                     tdna = False
 
+                # Since some Samples will be re-run in the same database with the
+                # same name the sample names need to be more specific
+                run_path = self.run
+                run_name = os.path.basename(self.run[:-1]) if self.run[-1] == "/" else os.path.basename(self.run)
+                sample_name_with_run_info = sample_name + "_" + run_name
+
                 # Add to dictionary
                 projects[project][sample_name] = {"genome":genome,"destination":destination,
                                                   "database":database,"barcode1":barcode1,"barcode2":barcode2,
                                                   "lane":lane,"index":index,"project":project,"sample_name":sample_name,
-                                                  "owner_email":owner_email,"tdna":tdna}
+                                                  "owner_email":owner_email,"tdna":tdna,
+                                                  "sample_name_with_run_info":sample_name_with_run_info}
 
         self.projects = projects
 
@@ -223,6 +230,7 @@ class project(object):
                 destination = self.projects[project][sample]["destination"]
                 database    = self.projects[project][sample]["database"]
                 tdna        = self.projects[project][sample]["tdna"]
+                sample_name = self.projects[project][sample]["sample_name_with_run_info"]
                 input_file  = "../bowtie.R1.sam"
 
                 if not destination and not database:
@@ -242,20 +250,41 @@ class project(object):
                 subprocess.call(["mkdir","annoj"])
                 os.chdir("annoj")
 
-                # Since some samples of the same project will be rerun there needs to be a way to differentiate
-                # between them. The RUN Names themselves will be unique so that will be tagged at the end of the 
-                # sample name.
-
-                run_path = self.run
-                run_name = os.path.basename(self.run[:-1]) if self.run[-1] == "/" else os.path.basename(self.run)
-                sample += "_" + run_name
-
                 getChromosomeFiles(input_file,tdna_filter=tdna)
-                upload2mysql(destination,database,sample,mysql_user,mysql_password,tdna_filter=tdna)
+                upload2mysql(destination,database,sample_name,mysql_user,mysql_password,tdna_filter=tdna)
 
             # This Method is optimized only for TDNA 
             if tdna:
                 self.getTrackDefintionsAndFetchers(project)
+
+    def callTDNAPools(self):
+        """
+        """
+        # from tdna_seq_caller import *
+
+        tdna_projects = []
+
+        # Get TDNA Projects
+        for project in self.projects:
+            if "tdna" in project.lower():
+                tdna_projects.append(project)
+
+        # 
+        for tdna_project in tdna_projects:
+            samples = [x for x in self.projects[tdna_project] if self.projects[tdna_project][x]["destination"] != ""]
+            samples.sort(key=lambda x:(x[0],int(x[1:3])))
+
+            if len(samples) != len(self.projects[tdna_project]):
+                print("Not all Samples have import information. Skipping %s" % tdna_project)
+                continue
+
+            # Format Samples for the SQL functions
+            samples_and_sql_info = defaultdict(dict)
+            for sample in samples:
+                samples_and_sql_info[sample]["user"] = "mysql"
+                samples_and_sql_info[sample]["password"] = "rekce"
+                samples_and_sql_info[sample]["host"] = self.projects[tdna_project][sample]["destination"]
+                samples_and_sql_info[sample]["table"] = self.projects[tdna_project][sample]["database"] + "." + self.projects[tdna_project][sample]["sample_name_with_run_info"]
 
     def bclStartEmailBlast(self):
         """
@@ -715,9 +744,9 @@ class project(object):
         tdna_filter_track_definitions.write("\n\n],\n\nactive : [\n'tair9',")
 
 
-        # THIS NEEDS TO BE MORE GENERAL!
-        active.sort(key= lambda x:("salk".find(x[0].lower()),int(x[1:3])))
-        active_filter.sort(key= lambda x:("salk".find(x[0].lower()),int(x[1:3])))
+        # This will Sort alphabetically then numerically
+        active.sort(key= lambda x:(x[0],int(x[1:3])))
+        active_filter.sort(key= lambda x:(x[0],int(x[1:3])))
 
         for sample in active:
             regular_track_definitions.write("'" + sample + "',")
@@ -780,4 +809,6 @@ if __name__=="__main__":
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.getTrackDefintionsAndFetchers("tDNA_Salk90k")
+    # p.getTrackDefintionsAndFetchers("tDNA_Salk90k")
+    print("Doing TDNA")
+    p.callTDNAPools()

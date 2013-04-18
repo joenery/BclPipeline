@@ -81,14 +81,7 @@ class project(object):
         """
         """
         projects = defaultdict(dict)
-
-        # Strategy: Take two passes at the file
-        # 1) Get all the Sample Information and save in to a dictionary. If there is a lane with
-        #    no Index then mark a flag and alert the user that a modified version of their sample
-        #    sheet will be created
-        # 2) If FLAG from above then create a new sample_sheet as samplesheet_tmp.csv
-
-        samples_with_no_indexes = False
+        samples_with_no_projects = False
 
         with open(self.sample_sheet, "r") as sample_sheet:
 
@@ -108,7 +101,8 @@ class project(object):
 
                 # If there are no names in the projects Quit!
                 if project == "":
-                    print("\nThere is a sample with no project name in the sample sheet!\n")
+                    print("\nSAMPLE:%s on LINE:%s IN:%s has no value for Sample_Project!\n" % (sample_name,i,os.path.basename(self.sample_sheet)))
+                    samples_with_no_projects = True
 
                 # Private Method Call
                 parsed_options = self.parseBowtieAndAnnojOptions(bowtie_annoj)
@@ -134,6 +128,11 @@ class project(object):
                 if genome == "bt":
                     genome = "tair10"
 
+                if genome == "tair10":
+                    chromosomes = [1,2,3,4,5]
+                else:
+                    chromosomes = []
+
 
                 # Is the sample part of a TDNA project?
                 if "tdna" in project.lower():
@@ -148,11 +147,14 @@ class project(object):
                 sample_name_with_run_info = sample_name + "_" + run_name
 
                 # Add to dictionary
-                projects[project][sample_name] = {"genome":genome,"destination":destination,
+                projects[project][sample_name] = {"genome":genome,"chromosomes":chromosomes,"destination":destination,
                                                   "database":database,"barcode1":barcode1,"barcode2":barcode2,
                                                   "lane":lane,"index":index,"project":project,"sample_name":sample_name,
                                                   "owner_email":owner_email,"tdna":tdna,
                                                   "sample_name_with_run_info":sample_name_with_run_info}
+
+        if samples_with_no_projects:
+            print("Samples with no projects will result in emails to owners without paths to their files.")
 
         self.projects = projects
 
@@ -162,6 +164,7 @@ class project(object):
         # We've moved away from using TDNA with no indexes.
         # If you need that functionality enable it here
         # if samples_with_no_indexes:
+        # There are also a slew of other methods you would have to go turn on.
 
         #     # Private Method Call
         #     self.convertSampleSheet()
@@ -266,6 +269,8 @@ class project(object):
         """
         The chromsomes must refer to the Assembly number that is in the SQL
         database.
+
+        remove dependencies on chromosome list!
         """
 
         tdna_projects = []
@@ -277,6 +282,7 @@ class project(object):
 
         # Now For each Porject Call Pools
         for tdna_project in tdna_projects:
+
             # Check to make sure every pool has the SQL information
             samples = [x for x in self.projects[tdna_project] if self.projects[tdna_project][x]["destination"] != ""]
             samples.sort(key=lambda x:(x[0],int(x[1:3])))
@@ -292,6 +298,7 @@ class project(object):
                 samples_and_sql_info[sample]["password"] = "rekce"
                 samples_and_sql_info[sample]["host"] = self.projects[tdna_project][sample]["destination"]
                 samples_and_sql_info[sample]["table"] = self.projects[tdna_project][sample]["database"] + "." + self.projects[tdna_project][sample]["sample_name_with_run_info"]
+
 
             # Call Pools. The same as to HTML Pipeline Implementation
             output_file_name = os.path.join(self.run,self.bcl_output_dir)
@@ -322,7 +329,27 @@ class project(object):
 
             # From Called Pools Output All the pools and the number of times they 
             # had hits.
+            samples = [x[:3] for x in samples]
+            pools_frequencies = {sample:0 for sample in samples}
 
+            print("Getting Frequencies")
+            with open(output_file_name,"r") as called_pools:
+                for line in called_pools:
+                    row = line.strip().split(",")
+                    pools = row[2:]
+
+                    for pool in pools:
+                        pools_frequencies[pool] += 1
+
+            with open(output_file_name + ".freqs","w") as pools_freqs:
+
+                pools = pools_frequencies.keys()[:]
+                pools.sort(key=lambda x:(x[0],int(x[1:])))
+
+                for pool in pools:
+                    freq = str(pools_frequencies[pool])
+                    to_write = " ".join([pool,freq])
+                    pools_freqs.write(to_write + "\n")
 
     def bclStartEmailBlast(self):
         """
@@ -837,6 +864,7 @@ class project(object):
                 return i
         else:
             return -1
+
 
 if __name__=="__main__":
     print("Testing...")

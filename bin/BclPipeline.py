@@ -14,7 +14,6 @@ import MySQLdb as mdb
 # My Modules
 from guts import *
 
-
 #--------------------- Script Specific Functions ----------------- #
 
 
@@ -24,6 +23,25 @@ class MyParser(argparse.ArgumentParser):
         self.print_help()
         sys.exit(2)
 
+
+def verifyRunFolder(run):
+
+    if not run:
+        parser.print_help()
+        sys.exit(1)
+
+    if not os.path.exists(run):
+        print("\nIt looks like that Path: %s doesn't exist. Try again.\n" % (run))
+        sys.exit(1)
+   
+    run = os.path.abspath(run)
+    info = os.path.basename(run).split("_")
+
+    if len(info) != 4 or len(info[0]) != 6:
+        print("\n\nDoesn't look like directory is a Run Folder!\n\n")
+        sys.exit(1)
+
+    return run
 
 def watchRunFolder(run,sleep):
     """
@@ -74,8 +92,8 @@ def parseConfigFile(path_to_file):
 
 if __name__=="__main__":
     
-    # --------------------------- Configure Arg Parser ----------------------------- #
-
+    
+    # ----Configure Arg Parser
     parser = MyParser(description = "Bcl Pipeline takes in an absolute path to the Top Level of an Illumina Run and watches the RTAComplete.txt\
                                      file for changes every hour. When the file is updated to reflect the finish time the script runs BCL.\
                                      Options for running Bowtie and and MySQL Upload are handled in the SampleSheet.csv file\
@@ -96,8 +114,8 @@ if __name__=="__main__":
     advanced.add_argument("-nn","--no-notifications",help="Turn notifications off. DEFAULT: notifications are on", action="store_true")
     advanced.add_argument("-a","--admin-only",  help = "Send notifications to Admins only. Helpful for debugging. DEFAULT: off",action = "store_true")
 
-    #---------------------------- Parse Command Line Options ---------------------------- #
-    
+
+    # ---- Parse Command Line Options
     command_line_options = vars(parser.parse_args())
 
     run              = command_line_options["run"]
@@ -107,24 +125,18 @@ if __name__=="__main__":
     admin_only       = command_line_options["admin_only"]
     bcl_options      = command_line_options["bcl_options"]
 
-    print bcl_options
 
-    #-------------------------- Checking the options! ------------------------------------ #
-    if not run:
-        parser.print_help()
-        sys.exit(1)
+    # ---- Checking the options!
+    run = verifyRunFolder(run)
 
-    if not os.path.exists(run):
-        print("\nIt looks like that Path: %s doesn't exist. Try again.\n" % (run))
-        sys.exit(1)
 
-    # -------------------------- Parse SampleSheet.csv  ------------------------------- #
-    
-    print("Parsing The Sample Sheet you gave me! Just a moment :-]")
+    # ---- Parse SampleSheet.csv 
+    print("Parsing The Sample Sheet (%s)! Just a moment :-]" % sample_sheet)
     p = project(run_path=run,sample_sheet=sample_sheet,bcl_output_dir=bcl_output_dir)
     p.parseSampleSheet()
 
-    # ------------------------- Pre-Start Check and Log Creation   -------------------------------------#
+
+    # ---- Pre-Start Check and Log Creation
     # Create Run Log
     run_log = open(run + "/Bcl_log.%s.%s.txt" % (bcl_output_dir,time.strftime("%m-%d-%y--%H:%M",time.localtime())),"a")
 
@@ -145,7 +157,8 @@ if __name__=="__main__":
         else:
             print " (y/n) only please! "
 
-    #  ---------------------------- Start of Daemon ------------------------------- #
+
+    #  ---- Start of Daemon
     print("\nStarting the Daemon. Bye!\n")
 
     with daemon.DaemonContext(stdout=run_log,stderr=run_log):
@@ -175,6 +188,8 @@ if __name__=="__main__":
         print("Running Annoj prep and upload")
         p.importProjects2Annoj()
 
+        p.callTDNAPools()
+
         # Alert the Masses!
         if not no_notifications:
             p.adminRunInfoBlast("BclPipeline Complete","The entire BclPipeline is complete (including Bowtie and Annoj upload for selected samples)")
@@ -184,5 +199,4 @@ if __name__=="__main__":
 
         # Clean up
         print("Finished BCL Pipeline :-]")
-        #run_log.close()
         

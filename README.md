@@ -1,8 +1,5 @@
-# BCL Gal-E Salk Pipeline
-- Contact: Joe Feeney -> jfeeney at salk edu  
+# BCL Gal-E Salk Pipeline 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/3.0/deed.en_US"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-nc/3.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/3.0/deed.en_US">Creative Commons Attribution-NonCommercial 3.0 Unported License</a>.
-
-
 
 # Uses
 - At least CASAVA 1.8.0 and that configureBclToFastq.pl is in your path and excecutable.
@@ -24,10 +21,6 @@ Bclpipeline.py -r <ABSOLUTE PATH TO RUN>
 The only option that needs to be supplied is the absolute path to the run folder you'd like to run Bcl on. By default it is assumed that the run has not completed. Bcl pipeline will watch the RTAComplete.txt file in the specified run folder for changes. When the finish time is appended BCL will run.
 
 ## Other Options
--nw / --no-watch -> If the run has already finished and you'd like to run the script this flag will cause Bcl to run right away. DEFAULT: Off
-
--p / --processor -> If there are runs that will be Bowtie-ed (See Bowtie and Annoj Section below) this will specify how many processors to run on each pass of Bowtie. DEFAULT: 12
-
 -n / --notifications -> By turning this feature on notifications will be set out to an ADMIN and the owners of Samples when the Bcl process has started and when it has finished (For more info on implementation see Notifications below). DEFAULT: Off
 
 ### Bowtie and Annoj/Mysql Upload

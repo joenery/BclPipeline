@@ -4,6 +4,7 @@ import sys
 from collections import defaultdict
 import re
 from socket import gethostname
+import csv
 
 # My modules
 from bowtieSimple import bowtie_folder
@@ -83,14 +84,13 @@ class project(object):
         projects = defaultdict(dict)
         samples_with_no_projects = False
 
-        with open(self.sample_sheet, "r") as sample_sheet:
+        with open(self.sample_sheet, "rU") as sample_sheet:
+            sample_sheet = csv.reader(sample_sheet)          
 
-            for i,line in enumerate(sample_sheet):
+            for i,row in enumerate(sample_sheet):
                 
                 if i == 0:
                     continue
-
-                row = line.strip().split(",")
 
                 lane         = row[1]
                 sample_name  = row[2].replace(".","_").replace("-","_").replace("#","_num_")
@@ -161,11 +161,7 @@ class project(object):
         # Parse Emails
         self.getEmailsAndProjects()
 
-        # We've moved away from using TDNA with no indexes.
-        # If you need that functionality enable it here
-        # if samples_with_no_indexes:
-        # There are also a slew of other methods you would have to go turn on.
-
+        # Deprocated
         #     # Private Method Call
         #     self.convertSampleSheet()
 
@@ -191,9 +187,6 @@ class project(object):
 
         system_call(["make","-j","8"],"Make Failed",admin_message=True,extra=self,shell=True)
 
-        # You can Rip this out when we move to the all index system.
-        # If there are Samples With Undetermined Indicies
-        # Filter and move the Samples in to the appropriate Project
         # DEPROCATED
         # if self.undetermined:
         #     self.grabUndetermined()
@@ -442,6 +435,7 @@ class project(object):
 
         return {"genome":genome, "destination":destination,"database":database,"barcode1":barcode1,"barcode2":barcode2}
 
+    # Deprocated
     def convertSampleSheet(self,number_of_lanes=8):
         print("Found Samples without Indexes")
         print("Saving new SampleSheet as _tmp.csv")
@@ -508,6 +502,7 @@ class project(object):
 
         print("Will now use %s as SampleSheet" % sample_sheet_no_extension)
 
+    # Deprocated
     def grabUndetermined(self):
         """
         # NOTE: This code has since been deprocated. It is still avaiable in case there is a need for this method
@@ -691,6 +686,7 @@ class project(object):
             # Change Directory back to Top of Undetermined
             os.chdir(undetermined_indices_path)
 
+    # Deprocated
     def checkProjectFolders(self):
 
         for project in self.projects:
@@ -869,12 +865,9 @@ class project(object):
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130405_LAMARCK_3152_BC1N7KACXX",\
-                sample_sheet   = "SampleSheet_130405_Lamarck_3153_with_clones.csv",\
-                bcl_output_dir = "UnalignedTDNA")
+    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130411_HAL_1237_AD1H47ACXX",\
+                sample_sheet   = "SampleSheet.csv",\
+                bcl_output_dir = "JoeTest")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    # p.getTrackDefintionsAndFetchers("tDNA_Salk90k")
-    print("Doing TDNA")
-    p.callTDNAPools()

@@ -20,9 +20,6 @@ import MySQLdb as sql
 import pandas as pd
 from numpy import log
 
-# ---- My Modules
-import fetcher_html_parser
-
 
 # ---- Chromosome Data Frame Creation and Filling
 def create_chrom_frame(unique_indexes,unique_columns):
@@ -259,6 +256,8 @@ def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd()):
     Output: A file with the HTML page name and a dot(.)out extension.
             contains the approximate basepair position and line calls.
     """
+    import fetcher_html_parser
+    
     # Global Variables
     chromosomes = ["chr" + str(x) for x in range(1,6)]
     output_file_name = os.path.splitext(os.path.basename(abs_path_to_html_page))[0]

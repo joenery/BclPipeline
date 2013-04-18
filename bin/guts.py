@@ -9,6 +9,7 @@ from socket import gethostname
 from bowtieSimple import bowtie_folder
 from import2annojsimple import *
 from emailnotifications  import notifications
+from tdna_seq_caller import fillChromosomeFromMySQL,pool_caller
 
 def system_call(command,err_message,admin_message=False,extra=None,shell=False):
     """
@@ -104,6 +105,10 @@ class project(object):
                 bowtie_annoj = row[5]
                 owner_email  = row[8]
                 project      = row[9].replace(".","_").replace("-","_").replace("#","_num_")
+
+                # If there are no names in the projects Quit!
+                if project == "":
+                    print("\nThere is a sample with no project name in the sample sheet!\n")
 
                 # Private Method Call
                 parsed_options = self.parseBowtieAndAnnojOptions(bowtie_annoj)
@@ -257,10 +262,11 @@ class project(object):
             if tdna:
                 self.getTrackDefintionsAndFetchers(project)
 
-    def callTDNAPools(self):
+    def callTDNAPools(self,chromosomes=[1,2,3,4,5]):
         """
+        The chromsomes must refer to the Assembly number that is in the SQL
+        database.
         """
-        # from tdna_seq_caller import *
 
         tdna_projects = []
 
@@ -269,8 +275,9 @@ class project(object):
             if "tdna" in project.lower():
                 tdna_projects.append(project)
 
-        # 
+        # Now For each Porject Call Pools
         for tdna_project in tdna_projects:
+            # Check to make sure every pool has the SQL information
             samples = [x for x in self.projects[tdna_project] if self.projects[tdna_project][x]["destination"] != ""]
             samples.sort(key=lambda x:(x[0],int(x[1:3])))
 
@@ -278,13 +285,44 @@ class project(object):
                 print("Not all Samples have import information. Skipping %s" % tdna_project)
                 continue
 
-            # Format Samples for the SQL functions
+            # Format Samples
             samples_and_sql_info = defaultdict(dict)
             for sample in samples:
                 samples_and_sql_info[sample]["user"] = "mysql"
                 samples_and_sql_info[sample]["password"] = "rekce"
                 samples_and_sql_info[sample]["host"] = self.projects[tdna_project][sample]["destination"]
                 samples_and_sql_info[sample]["table"] = self.projects[tdna_project][sample]["database"] + "." + self.projects[tdna_project][sample]["sample_name_with_run_info"]
+
+            # Call Pools. The same as to HTML Pipeline Implementation
+            output_file_name = os.path.join(self.run,self.bcl_output_dir)
+            output_file_name = os.path.join(output_file_name,"Project_" + tdna_project)
+            output_file_name = os.path.join(output_file_name,"Called_Pools.out")
+
+            with open(output_file_name,"w") as pools_output:
+                print("Calculating Pools for %s" % (tdna_project))
+                for chromosome in chromosomes:
+                    chromosome_name = "chr"+str(chromosome)
+
+                    print("\t" + chromosome_name)
+                    print("\tGenerating Chromsome Data Frame")
+
+                    chrom_frame = fillChromosomeFromMySQL(samples_with_sql_information=samples_and_sql_info,
+                                                          chromosome=chromosome_name,
+                                                          min_reads=2)
+
+                    # There must be at least 4 non NA's in a column
+                    # Replace NA's in column with 0's
+                    print("\tCleaning")
+                    chrom_frame = chrom_frame.dropna(axis=1,thresh=4)
+                    chrom_frame = chrom_frame.fillna(0)
+
+                    # Start Calling Pools from Columns
+                    print("\tCalling Pools")
+                    pool_caller(chrom_frame,pools_output,chromosome_name)
+
+            # From Called Pools Output All the pools and the number of times they 
+            # had hits.
+
 
     def bclStartEmailBlast(self):
         """

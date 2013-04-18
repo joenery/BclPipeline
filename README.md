@@ -1,6 +1,7 @@
 # BCL Gal-E Salk Pipeline
-Joe Feeney: jfeeney at salk edu
-License: Buy a Joe Feeney a beer if this script doesn't suck.
+- Joe Feeney: jfeeney at salk edu
+- This work is licensed under [Creative Commons Attribution-NonCommercial 3.0 Unported](http://creativecommons.org/licenses/by-nc/3.0/legalcode). Human readable version is [here](http://creativecommons.org/licenses/by-nc/3.0/) 
+
 
 # Uses
 - At least CASAVA 1.8.0 and that configureBclToFastq.pl is in your path and excecutable.

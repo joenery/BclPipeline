@@ -92,7 +92,7 @@ def parseConfigFile(path_to_file):
 
 if __name__=="__main__":
     
-    
+
     # ----Configure Arg Parser
     parser = MyParser(description = "Bcl Pipeline takes in an absolute path to the Top Level of an Illumina Run and watches the RTAComplete.txt\
                                      file for changes every hour. When the file is updated to reflect the finish time the script runs BCL.\
@@ -165,7 +165,7 @@ if __name__=="__main__":
 
         print("Daemon is now running")
 
-        if not no_notifications:
+        if not no_notifications and not os.path.isfile(os.path.join(run,"RTAComplete.txt")):
             p.adminRunInfoBlast("Daemon running","Daemon is running")
 
         # Checks Every Half Hour. First check is instant

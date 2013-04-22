@@ -20,9 +20,6 @@ import MySQLdb as sql
 import pandas as pd
 from numpy import log
 
-# ---- My Modules
-import fetcher_html_parser
-
 
 # ---- Chromosome Data Frame Creation and Filling
 def create_chrom_frame(unique_indexes,unique_columns):
@@ -230,34 +227,6 @@ def pool_caller(chrom_frame,output_file,chromosome,min_percentage=0.8,call_dista
             prev_winners = winners[:]
 
 
-def pool_cleaner(input_file,call_distance=50):
-    """
-    Takes in a path/name to an called pool file and removes close calls
-
-    Assumes that the number of unique pools is 4 and the min is 3
-    """
-
-    with open(input_file,"r") as input_file:
-        with open(input_file + ".clean","w") as output_file:
-
-            for i,line in enumerate(input_file):
-                row = line.strip().split(",")
-                position = row[1]
-                calls = row[2:]
-
-                if i == 0:
-                    prev_position = position
-                    prev_calls = calls
-                    prev_row = row[:]
-
-                if position - prev_position >= call_distance:
-                    output_file.write(",".join(row))
-
-                elif len([x for x in prev_row if x in row]) == 3:
-                    pass
-
-
-
 def calculate_winners(chrom_frame_subset,min_percentage,min_reads=3):
     """
     Takes a subset of a DF and calculate a winner from
@@ -296,6 +265,73 @@ def calculate_noise_coefficient(chrom_frame_subset):
     return [-1*log(highest_percentage)]
 
 
+def pool_cleaner(pool_calls,call_distance=75):
+    """
+    Takes in a path/name to an called pool file and removes close calls
+
+    Assumes that the number of unique pools is 4 and the min is 3
+    """
+
+    with open(pool_calls,"r") as input_file:
+        calls = input_file.readlines()
+        calls = [x.strip().split(",") for x in calls]
+
+
+    with open(pool_calls + ".clean","w") as output_file:
+        compare = []
+
+        # Compare two rows at a time. If the rows meet the criteria choose which
+        # row to keep and move to next pair. If not print out the first row and 
+        # remove it from the compare list.
+        while calls:
+            current_call = calls.pop(0)
+
+            if len(compare) < 1:
+                compare.append(current_call)
+                continue
+
+            else:
+                compare.append(current_call)
+                
+            # This will only excecute if we have two reads stored in compare
+            prev_row      = compare[0][:]
+            prev_position = int(compare[0][1])
+            prev_winners  = compare[0][2:]
+
+            current_row      = compare[1][:]
+            current_position = int(compare[1][1])
+            current_winners  = compare[1][2:]
+
+            # Within 50bps and 3 out of 4 pools are in prev
+            if current_position - prev_position <= 50 and \
+               len([x for x in current_winners if x in prev_winners]) >= 3:
+
+               # Print Only the row that has the most winners
+               most_calls = find_max_pool_calls(prev_row,current_row)
+               output_file.write(",".join(most_calls) + "\n")
+
+               # Dump both rows
+               compare = []
+
+            else:
+                # Just write prev_row
+                output_file.write(",".join(prev_row) + "\n")
+
+                compare = [compare[1]]
+
+        # If the number of rows is odd then this algo won't print the last one
+        # Do it manually
+        if len(compare) == 1:
+            output_file.write(",".join(compare[0]) + "\n")
+
+
+def find_max_pool_calls(prev,current):
+    # This essentially returns the positive strand as it returns the row in "prev"
+    if len(prev) >= len(current):
+        return prev[:]
+    return current[:]
+
+
 # ---- Pipelines
 def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd()):
     """
@@ -304,6 +340,8 @@ def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd()):
     Output: A file with the HTML page name and a dot(.)out extension.
             contains the approximate basepair position and line calls.
     """
+    import fetcher_html_parser
+
     # Global Variables
     chromosomes = ["chr" + str(x) for x in range(1,6)]
     output_file_name = os.path.splitext(os.path.basename(abs_path_to_html_page))[0]
@@ -329,6 +367,7 @@ def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd()):
             # Start Calling Pools from Columns
             print("\tCalling Pools")
             pool_caller(chrom_frame,output_file,chromosome)
+            pool_cleaner(output_file_name + ".out")
 
 
 # ---- Misc

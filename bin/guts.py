@@ -10,6 +10,7 @@ import csv
 from bowtieSimple import bowtie_folder
 from import2annojsimple import *
 from emailnotifications  import notifications
+from genomes import genomes
 from tdna_seq_caller import fillChromosomeFromMySQL,pool_caller,pool_cleaner
 
 def system_call(command,err_message,admin_message=False,extra=None,shell=False):
@@ -82,7 +83,12 @@ class project(object):
         """
         """
         projects = defaultdict(dict)
+        project_chromosomes = {}
         samples_with_no_projects = False
+
+        # You can add more genomes to the genomes module and
+        # they will be imported here!
+        g = genomes()
 
         with open(self.sample_sheet, "rU") as sample_sheet:
             sample_sheet = csv.reader(sample_sheet)          
@@ -128,11 +134,7 @@ class project(object):
                 if genome == "bt":
                     genome = "tair10"
 
-                if genome == "tair10":
-                    chromosomes = [1,2,3,4,5]
-                else:
-                    chromosomes = []
-
+                chromosomes = g.genomes[genome]
 
                 # Is the sample part of a TDNA project?
                 if "tdna" in project.lower():
@@ -153,13 +155,14 @@ class project(object):
                                                   "owner_email":owner_email,"tdna":tdna,
                                                   "sample_name_with_run_info":sample_name_with_run_info}
 
-                projects[project]["chromosomes"] = chromsomes
+                project_chromosomes[project] = chromosomes[:]
 
         # Save info to object
         if samples_with_no_projects:
             print("Samples with no projects will result in emails to owners without paths to their files.")
 
         self.projects = projects
+        self.project_chromosomes = project_chromosomes
 
         # Parse Emails
         self.getEmailsAndProjects()
@@ -264,9 +267,10 @@ class project(object):
     def callTDNAPools(self):
         """
         The chromsomes must refer to the Assembly number that is in the SQL
-        database.
+        database. Chromosomes can be inferred from the genome selected to bowtie
+        to from the Sample Sheet.
 
-        To do: remove dependencies on chromosome list!
+        If a genome or name of genome is not present you can add these
         """
 
         tdna_projects = []
@@ -279,7 +283,7 @@ class project(object):
         # Now For each Project Call Pools
         for tdna_project in tdna_projects:
             # Get chromosomes from project
-            project_chromsomes = tdna_projects[tdna_project]["chromosomes"]
+            project_chromsomes = self.project_chromosomes[tdna_project]
 
             # Check to make sure every pool has the SQL information
             samples = [x for x in self.projects[tdna_project] if self.projects[tdna_project][x]["destination"] != ""]
@@ -307,30 +311,31 @@ class project(object):
                 for chromosome in project_chromsomes:
                     chromosome_name = "chr"+str(chromosome)
 
-                    print("\t" + chromosome_name)
+                    print("  " + chromosome_name)
                     print("\tGenerating Chromsome Data Frame")
 
                     chrom_frame = fillChromosomeFromMySQL(samples_with_sql_information=samples_and_sql_info,
-                                                          chromosome=chromosome_name,
-                                                          min_reads=2)
+                                                          chromosome=chromosome_name)
 
                     # There must be at least 4 non NA's in a column
                     # Replace NA's in column with 0's
                     print("\tCleaning")
-                    chrom_frame = chrom_frame.dropna(axis=1,thresh=4)
+                    chrom_frame = chrom_frame.dropna(axis=1,thresh=3)
                     chrom_frame = chrom_frame.fillna(0)
 
                     # Start Calling Pools from Columns
                     print("\tCalling Pools")
                     pool_caller(chrom_frame,pools_output,chromosome_name)
-                    pool_cleaner(output_file_name)
+
+            print("\tCleaning Pools")
+            pool_cleaner(output_file_name)
 
             # From Called Pools Output All the pools and the number of times they 
             # had hits.
             samples = [x[:3] for x in samples]
             pools_frequencies = {sample:0 for sample in samples}
 
-            print("Getting Frequencies")
+            print("\tGetting Frequencies")
             with open(output_file_name + ".clean","r") as called_pools:
                 for line in called_pools:
                     row = line.strip().split(",")
@@ -871,9 +876,9 @@ if __name__=="__main__":
     print("Testing...")
 
     p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130405_LAMARCK_3152_BC1N7KACXX",\
-                sample_sheet   = "SampleSheet.csv",\
+                sample_sheet   = "SampleSheet_130405_Lamarck_3153.csv",\
                 bcl_output_dir = "UnalignedTDNA")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.callTDNAPools("SampleSheet_130405_Lamarck_3153.csv")
+    p.callTDNAPools()

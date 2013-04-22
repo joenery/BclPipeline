@@ -10,7 +10,7 @@ import csv
 from bowtieSimple import bowtie_folder
 from import2annojsimple import *
 from emailnotifications  import notifications
-from tdna_seq_caller import fillChromosomeFromMySQL,pool_caller
+from tdna_seq_caller import fillChromosomeFromMySQL,pool_caller,pool_cleaner
 
 def system_call(command,err_message,admin_message=False,extra=None,shell=False):
     """
@@ -153,6 +153,9 @@ class project(object):
                                                   "owner_email":owner_email,"tdna":tdna,
                                                   "sample_name_with_run_info":sample_name_with_run_info}
 
+                projects[project]["chromosomes"] = chromsomes
+
+        # Save info to object
         if samples_with_no_projects:
             print("Samples with no projects will result in emails to owners without paths to their files.")
 
@@ -258,12 +261,12 @@ class project(object):
             if tdna:
                 self.getTrackDefintionsAndFetchers(project)
 
-    def callTDNAPools(self,chromosomes=[1,2,3,4,5]):
+    def callTDNAPools(self):
         """
         The chromsomes must refer to the Assembly number that is in the SQL
         database.
 
-        remove dependencies on chromosome list!
+        To do: remove dependencies on chromosome list!
         """
 
         tdna_projects = []
@@ -273,8 +276,10 @@ class project(object):
             if "tdna" in project.lower():
                 tdna_projects.append(project)
 
-        # Now For each Porject Call Pools
+        # Now For each Project Call Pools
         for tdna_project in tdna_projects:
+            # Get chromosomes from project
+            project_chromsomes = tdna_projects[tdna_project]["chromosomes"]
 
             # Check to make sure every pool has the SQL information
             samples = [x for x in self.projects[tdna_project] if self.projects[tdna_project][x]["destination"] != ""]
@@ -292,7 +297,6 @@ class project(object):
                 samples_and_sql_info[sample]["host"] = self.projects[tdna_project][sample]["destination"]
                 samples_and_sql_info[sample]["table"] = self.projects[tdna_project][sample]["database"] + "." + self.projects[tdna_project][sample]["sample_name_with_run_info"]
 
-
             # Call Pools. The same as to HTML Pipeline Implementation
             output_file_name = os.path.join(self.run,self.bcl_output_dir)
             output_file_name = os.path.join(output_file_name,"Project_" + tdna_project)
@@ -300,7 +304,7 @@ class project(object):
 
             with open(output_file_name,"w") as pools_output:
                 print("Calculating Pools for %s" % (tdna_project))
-                for chromosome in chromosomes:
+                for chromosome in project_chromsomes:
                     chromosome_name = "chr"+str(chromosome)
 
                     print("\t" + chromosome_name)
@@ -319,6 +323,7 @@ class project(object):
                     # Start Calling Pools from Columns
                     print("\tCalling Pools")
                     pool_caller(chrom_frame,pools_output,chromosome_name)
+                    pool_cleaner(output_file_name)
 
             # From Called Pools Output All the pools and the number of times they 
             # had hits.
@@ -326,7 +331,7 @@ class project(object):
             pools_frequencies = {sample:0 for sample in samples}
 
             print("Getting Frequencies")
-            with open(output_file_name,"r") as called_pools:
+            with open(output_file_name + ".clean","r") as called_pools:
                 for line in called_pools:
                     row = line.strip().split(",")
                     pools = row[2:]
@@ -334,7 +339,7 @@ class project(object):
                     for pool in pools:
                         pools_frequencies[pool] += 1
 
-            with open(output_file_name + ".freqs","w") as pools_freqs:
+            with open(output_file_name + ".clean.freqs","w") as pools_freqs:
 
                 pools = pools_frequencies.keys()[:]
                 pools.sort(key=lambda x:(x[0],int(x[1:])))
@@ -375,7 +380,7 @@ class project(object):
 
             subject = "Analysis Complete for %s!" % (os.path.basename(self.run))
 
-            projects = [self.run + "/" + self.bcl_output_dir + "/" + project for project in self.emails_and_projects[email].keys()]
+            projects = [self.run + "/" + self.bcl_output_dir + "/Project_" + project for project in self.emails_and_projects[email].keys()]
 
             message = "%s has completed its analysis!\n\nHere are the Paths to your Projects:\n\n%s" % (os.path.basename(self.run),"\n".join(projects))
 
@@ -865,9 +870,10 @@ class project(object):
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130411_HAL_1237_AD1H47ACXX",\
+    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130405_LAMARCK_3152_BC1N7KACXX",\
                 sample_sheet   = "SampleSheet.csv",\
-                bcl_output_dir = "JoeTest")
+                bcl_output_dir = "UnalignedTDNA")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
+    p.callTDNAPools("SampleSheet_130405_Lamarck_3153.csv")

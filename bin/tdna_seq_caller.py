@@ -20,6 +20,9 @@ import MySQLdb as sql
 import pandas as pd
 from numpy import log
 
+# ---- My Modules
+import fetcher_html_parser
+
 
 # ---- Chromosome Data Frame Creation and Filling
 def create_chrom_frame(unique_indexes,unique_columns):
@@ -33,13 +36,14 @@ def create_chrom_frame(unique_indexes,unique_columns):
     indexes = unique_indexes[:]
     columns = unique_columns[:]
 
+    # It is assumed that the Indexes are in the A10,B25... format
     columns.sort(key = lambda x:int(x))
     indexes.sort(key = lambda x:(x[0],int(x[1:3])))
 
     return pd.DataFrame(index=indexes,columns=columns)
 
 
-def fillChromosomeFromMySQL(chromosome,samples_with_sql_information,min_reads):
+def fillChromosomeFromMySQL(chromosome,samples_with_sql_information):
     """
     With a Dicitionary of Samples and chromosomes information create a DataFrame and
     fill it up with absolute values of the pileup counts
@@ -48,7 +52,6 @@ def fillChromosomeFromMySQL(chromosome,samples_with_sql_information,min_reads):
     - samples_with_sql_information: dictionary where Keys are sample names and
                                     Values are dictionaries that contain the
                                     MySQL information.
-    - min_reads: integer representing the minimum amount of reads needed in a bin
     """
     # Create a Chrom Frame
     chrom_frame = create_chrom_frame_from_sql(chromosome,samples_with_sql_information)
@@ -71,13 +74,11 @@ def fillChromosomeFromMySQL(chromosome,samples_with_sql_information,min_reads):
         cursor    = connection.cursor()
         cursor.execute("SELECT * FROM %s where assembly = %s" % (table,chromosome.replace("chr","")))
 
-        # Move to Plus strand
         sql_data = list(cursor.fetchall())
-        sql_data.sort(key = lambda x: x[4] if x[2] == "+" else x[3])
 
         # Calculate and add Pileups to Data Frame
         add_pileups_to_frame(chrom_frame=chrom_frame,index=sample,data_to_parse=sql_data,
-                             direction_column=2,start_column=3,end_column=4,min_reads=min_reads)
+                             direction_column=2,start_column=3,end_column=4)
 
     return chrom_frame
 
@@ -123,9 +124,9 @@ def create_chrom_frame_from_sql(chromosome,samples_with_sql_information):
     return create_chrom_frame(samples_with_sql_information.keys(),columns)
 
 
-def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_column,end_column,min_reads,pos="+",neg="-",split_string=" ",chromosome_column=None,chromosome_number=None):
+def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_column,end_column,pos="+",neg="-",split_string=" ",chromosome_column=None,chromosome_number=None):
     """
-    Add Pileups to data frame is a pretty versitale function. Given a data frame new information
+    Add Pileups to data frame is a pretty versatile function. Given a data frame new information
     is added to that frame by Pass by Reference ie nothing is returned. Any sort of delimited Object
     can be passed through as long as it has the correct information for direction, start and end.
 
@@ -139,7 +140,7 @@ def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_
     """
 
     pileup_height = 0
-    prev_position = 0
+    prev_position = None
 
     for row in data_to_parse:
 
@@ -151,27 +152,27 @@ def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_
         start     = row[start_column]
         end       = row[end_column]
 
-        # if we have this information check. If false continue
-        if (chromosome_column and chromosome_number) and not (row[chromosome_column] == chromosome_number):
-            continue
-
         if direction == pos:
             pileup_position = int(end)
 
         elif direction == neg:
             pileup_position = int(start)
 
+        # if we have this information check. If false continue
+        if (chromosome_column and chromosome_number) and not (row[chromosome_column] == chromosome_number):
+            continue
+
         # Add to Frame
         if pileup_position == prev_position:
             pileup_height += 1
-        else:
-            if pileup_height >= min_reads:
 
-                # Initialize the position
-                if pd.isnull(chrom_frame.ix[index,prev_position]):
-                    chrom_frame.ix[index,prev_position] = 0
+        elif pileup_position != prev_position and prev_position != None:
 
-                chrom_frame.ix[index,prev_position] += pileup_height
+            # Initialize position
+            if pd.isnull(chrom_frame.ix[index,prev_position]):
+                chrom_frame.ix[index,prev_position] = 0
+
+            chrom_frame.ix[index,prev_position] += pileup_height
 
             pileup_height = 1
 
@@ -179,21 +180,30 @@ def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_
 
 
 # ---- Calling Pools from Columns
-def pool_caller(chrom_frame,output_file,chromosome):
+def pool_caller(chrom_frame,output_file,chromosome,min_percentage=0.8,call_distance=50):
     """
     Input: Pandas DataFrame for a chromosome. Assume that the frame is clean.
            Only should have columns that have at least 4 non null values
 
     - output_file: Python File Object
     - chromosome: string representation of chromosome
+
+    The output is collapsed if the prev call had the same winnwers and is within 50bp
+    of each other
     """
     # Get Unique Pools
     # e.g. Group all the S's and A's and L's and K's
+
+    # Global
     unique_pools = defaultdict(list)
     prev_call = {}
+    prev_column = 0
+    prev_winners = None
 
     for index in chrom_frame.index:
         unique_pools[index[0]].append(index)
+
+    min_amount_of_pools = len(unique_pools.keys()) - 1 
 
     # Loop through Columns. Calculate "Winners" for each unique pool
     for column in chrom_frame.columns:
@@ -201,18 +211,54 @@ def pool_caller(chrom_frame,output_file,chromosome):
         noise_coefficients = []
 
         for pool in unique_pools:
-            winners += calculate_winners(chrom_frame.ix[unique_pools[pool],column])
+            winners += calculate_winners(chrom_frame.ix[unique_pools[pool],column],min_percentage=min_percentage)
             noise_coefficients += calculate_noise_coefficient(chrom_frame.ix[unique_pools[pool],column])
 
-            noise_coefficient = sum(noise_coefficients)
+        # Multipy all the elements together
+        mult_noise_coefficient = reduce(lambda x,y:x*y,noise_coefficients)
 
-        # If there are N samples in a pool and N winners in that column
-        if len(winners) >= len(unique_pools.keys()) - 1:
+        # Check the Noise Coefficients
+        if mult_noise_coefficient > -log(min_percentage**4) or [coeff for coeff in noise_coefficients if coeff > -log(min_percentage)]:
+            # Either all the pools are noise-y or there is a single pool that has too much noise
+            continue
+        if len(winners) >= min_amount_of_pools and not (column - prev_column < call_distance and winners == prev_winners):
+            
             output_string = ",".join([chromosome]+[str(column)] + winners)
             output_file.write(output_string + "\n")
 
+            prev_column = column
+            prev_winners = winners[:]
 
-def calculate_winners(chrom_frame_subset,min_percentage = 0.8):
+
+def pool_cleaner(input_file,call_distance=50):
+    """
+    Takes in a path/name to an called pool file and removes close calls
+
+    Assumes that the number of unique pools is 4 and the min is 3
+    """
+
+    with open(input_file,"r") as input_file:
+        with open(input_file + ".clean","w") as output_file:
+
+            for i,line in enumerate(input_file):
+                row = line.strip().split(",")
+                position = row[1]
+                calls = row[2:]
+
+                if i == 0:
+                    prev_position = position
+                    prev_calls = calls
+                    prev_row = row[:]
+
+                if position - prev_position >= call_distance:
+                    output_file.write(",".join(row))
+
+                elif len([x for x in prev_row if x in row]) == 3:
+                    pass
+
+
+
+def calculate_winners(chrom_frame_subset,min_percentage,min_reads=3):
     """
     Takes a subset of a DF and calculate a winner from
     that specific subset of columns
@@ -229,7 +275,7 @@ def calculate_winners(chrom_frame_subset,min_percentage = 0.8):
     if frequency_totals == 0:
         return []
 
-    if max(chrom_frame_subset) / frequency_totals >= min_percentage:
+    if max(chrom_frame_subset) > min_reads and max(chrom_frame_subset) / frequency_totals >= min_percentage:
         return [chrom_frame_subset.index[chrom_frame_subset.argmax()][:3]]
 
     return []
@@ -237,6 +283,8 @@ def calculate_winners(chrom_frame_subset,min_percentage = 0.8):
 
 def calculate_noise_coefficient(chrom_frame_subset):
     """
+    Noise coefficients are measured by taking the negative natural log of the
+    max frequency in a pool divided by the total hits in the pool.
     """
     frequency_totals = sum(chrom_frame_subset)
 
@@ -245,7 +293,7 @@ def calculate_noise_coefficient(chrom_frame_subset):
 
     highest_percentage = max(chrom_frame_subset)/frequency_totals
 
-    return [-1*log(highest_percentage**2)]
+    return [-1*log(highest_percentage)]
 
 
 # ---- Pipelines
@@ -256,8 +304,6 @@ def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd()):
     Output: A file with the HTML page name and a dot(.)out extension.
             contains the approximate basepair position and line calls.
     """
-    import fetcher_html_parser
-    
     # Global Variables
     chromosomes = ["chr" + str(x) for x in range(1,6)]
     output_file_name = os.path.splitext(os.path.basename(abs_path_to_html_page))[0]
@@ -266,13 +312,13 @@ def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd()):
     samples = fetcher_html_parser.html_parser(abs_path_to_html_page)
 
     with open(output_file_name + ".out","w") as output_file:
+        # ---- Filter Check
         for chromosome in chromosomes:
             print(chromosome)
             print("\tGenerating Chromsome Data Frame")
 
             chrom_frame = fillChromosomeFromMySQL(samples_with_sql_information=samples,
-                                                  chromosome=chromosome,
-                                                  min_reads=2)
+                                                  chromosome=chromosome)
 
             # There must be at least 4 non NA's in a column
             # Replace NA's in column with 0's

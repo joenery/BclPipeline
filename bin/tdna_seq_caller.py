@@ -79,7 +79,7 @@ def fillChromosomeFromMySQL(chromosome,samples_with_sql_information):
 
     return chrom_frame
 
-
+# Called by fillChromosomeFromSQL
 def create_chrom_frame_from_sql(chromosome,samples_with_sql_information):
     """
     Preallocate Data Frame with the right columns before filling it.
@@ -120,7 +120,7 @@ def create_chrom_frame_from_sql(chromosome,samples_with_sql_information):
 
     return create_chrom_frame(samples_with_sql_information.keys(),columns)
 
-
+# Called by add_pileups_to_frame
 def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_column,end_column,pos="+",neg="-",split_string=" ",chromosome_column=None,chromosome_number=None):
     """
     Add Pileups to data frame is a pretty versatile function. Given a data frame new information

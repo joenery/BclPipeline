@@ -113,6 +113,7 @@ if __name__=="__main__":
     advanced.add_argument("-b","--bcl-options", help = "A string in quotation marks that contain the options you would like to run DEFAULT: None", default="") 
     advanced.add_argument("-nn","--no-notifications",help="Turn notifications off. DEFAULT: notifications are on", action="store_true")
     advanced.add_argument("-a","--admin-only",  help = "Send notifications to Admins only. Helpful for debugging. DEFAULT: off",action = "store_true")
+    advanced.add_argument("-p","--processors",  help = "How many processors to use when Bowtie is run DEFAULT:10", default=10)
 
 
     # ---- Parse Command Line Options
@@ -124,6 +125,7 @@ if __name__=="__main__":
     bcl_output_dir   = command_line_options["output_dir"]
     admin_only       = command_line_options["admin_only"]
     bcl_options      = command_line_options["bcl_options"]
+    processors       = command_line_options["processors"]
 
 
     # ---- Checking the options!
@@ -183,7 +185,7 @@ if __name__=="__main__":
         print("Finished BCL Analysis")
 
         print("Running Bowtie Analysis")
-        p.bowtieProjects()
+        p.bowtieProjects(processors=processors)
 
         print("Running Annoj prep and upload")
         p.importProjects2Annoj()

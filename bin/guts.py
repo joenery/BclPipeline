@@ -201,7 +201,7 @@ class project(object):
         # if self.undetermined:
         #     self.grabUndetermined()
 
-    def bowtieProjects(self):
+    def bowtieProjects(self,processors=10):
 
         output_dir = self.run + "/" + self.bcl_output_dir
 
@@ -221,7 +221,7 @@ class project(object):
                 folder = output_dir + "/Project_" + project + "/Sample_" + sample
 
                 print("\tSample %s" % sample)
-                bowtie_folder(folder,indexes_genome=genome)
+                bowtie_folder(folder,indexes_genome=genome,options="--local -p %s" % processors)
 
     def importProjects2Annoj(self):
         """

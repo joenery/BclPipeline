@@ -134,7 +134,11 @@ class project(object):
                 if genome == "bt":
                     genome = "tair10"
 
-                chromosomes = g.genomes[genome]
+                # Get Number of Chromosomes
+                try:
+                    chromosomes = g.genomes[genome]
+                except KeyError:
+                    chromosomes = []
 
                 # Is the sample part of a TDNA project?
                 if "tdna" in project.lower():
@@ -875,10 +879,11 @@ class project(object):
 if __name__=="__main__":
     print("Testing...")
 
-    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130405_LAMARCK_3152_BC1N7KACXX",\
-                sample_sheet   = "SampleSheet_130405_Lamarck_3153.csv",\
-                bcl_output_dir = "UnalignedTDNA")
+    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130416_LAMARCK_3154_AD234WACXX",\
+                sample_sheet   = "SampleSheet_130416_LAMARCK_3154.csv",\
+                bcl_output_dir = "Unaligned")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
+    p.importProjects2Annoj()
     p.callTDNAPools()

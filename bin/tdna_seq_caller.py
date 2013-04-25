@@ -14,6 +14,7 @@ corresponding MySQL connection info needed to pull down that sample.
 import os
 import sys
 from collections import defaultdict
+import subprocess
 
 # ---- Non Standard
 import MySQLdb as sql
@@ -52,6 +53,7 @@ def fillChromosomeFromMySQL(chromosome,samples_with_sql_information,debug=False)
     """
     # Create a Chrom Frame
     chrom_frame = create_chrom_frame_from_sql(chromosome,samples_with_sql_information,debug)
+    positions_directions = defaultdict(list)
 
     # Loop through Samples and pull out relavent assembly info
     # and add to the DataFrame
@@ -78,11 +80,10 @@ def fillChromosomeFromMySQL(chromosome,samples_with_sql_information,debug=False)
 
         sql_data = list(cursor.fetchall())
 
-        # Calculate and add Pileups to Data Frame
         add_pileups_to_frame(chrom_frame=chrom_frame,index=sample,data_to_parse=sql_data,
-                             direction_column=2,start_column=3,end_column=4)
+                             direction_column=2,start_column=3,end_column=4,positions_directions=positions_directions)
 
-    return chrom_frame
+    return chrom_frame,positions_directions
 
 
 # Called by fillChromosomeFromSQL
@@ -134,7 +135,7 @@ def create_chrom_frame_from_sql(chromosome,samples_with_sql_information,debug=Fa
 
 
 # Called by add_pileups_to_frame
-def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_column,end_column,pos="+",neg="-",split_string=" ",chromosome_column=None,chromosome_number=None):
+def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_column,end_column,pos="+",neg="-",split_string=" ",chromosome_column=None,chromosome_number=None,positions_directions=None):
     """
     Add Pileups to data frame is a pretty versatile function. Given a data frame new information
     is added to that frame by Pass by Reference ie nothing is returned. Any sort of delimited Object
@@ -152,6 +153,7 @@ def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_
     pileup_height = 0
     prev_position = None
 
+
     for row in data_to_parse:
 
         # Sometimes shit is not a list, and it might be a File Object
@@ -165,8 +167,14 @@ def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_
         if direction == pos:
             pileup_position = int(end)
 
+            if isinstance(positions_directions,dict):
+                positions_directions[pileup_position].append("+")
+
         elif direction == neg:
             pileup_position = int(start)
+
+            if isinstance(positions_directions,dict):
+                positions_directions[pileup_position].append("-")
 
         # if we have this information check. If false continue
         if (chromosome_column and chromosome_number) and not (row[chromosome_column] == chromosome_number):
@@ -190,7 +198,7 @@ def add_pileups_to_frame(chrom_frame,index,data_to_parse,direction_column,start_
 
 
 # ---- Calling Pools from Columns
-def pool_caller(chrom_frame,output_file,chromosome,min_percentage=0.92,min_reads=3,min_distance=50,debug=False):
+def pool_caller(chrom_frame,output_file,chromosome,min_percentage=0.92,min_reads=2,min_distance=50,debug=False,raw_output=None,positions_directions=None):
     """
     Input: Pandas DataFrame for a chromosome. Assume that the frame is clean.
            Only should have columns that have at least 4 non null values
@@ -200,6 +208,7 @@ def pool_caller(chrom_frame,output_file,chromosome,min_percentage=0.92,min_reads
     - min_percentage: what is the minumum percentage of total reads in a pool
                       that a winner needs to have. Used when checking the noise.
     - min_distance: how far away do similar winners need to be
+    - debug: Prints Column information out to the screen at every position.
 
     The output is collapsed if the prev call had the same winnwers and is within 50bp
     of each other
@@ -208,6 +217,7 @@ def pool_caller(chrom_frame,output_file,chromosome,min_percentage=0.92,min_reads
     unique_pools = defaultdict(list)
     prev_column = 0
     prev_winners = None
+    prev_direction = None
     column_tracker = {}
     # write code to track around a read and see if the surrounding area is noisy
 
@@ -222,35 +232,48 @@ def pool_caller(chrom_frame,output_file,chromosome,min_percentage=0.92,min_reads
     for column in chrom_frame.columns:
         winners = []
         noise_coefficients = []
+       
+        # Get max direction at that position
+        if positions_directions:
+            directions = positions_directions[int(column)][:100]
+            direction = max(directions,key=directions.count)
+        else:
+            direction = ""
 
         # Find naive winners and Noise Coefficients
         for pool in unique_pools:
             winners += calculate_winners(chrom_frame.ix[unique_pools[pool],column],min_reads)
             noise_coefficients += calculate_noise_coefficient(chrom_frame.ix[unique_pools[pool],column])
 
+
         total_noise_coefficient = sum(noise_coefficients)
 
         if debug:
-            print column,winners,noise_coefficients,total_noise_coefficient, "Max:" + str(-4*log(min_percentage))
+            print chrom_frame.ix[:,column],winners,noise_coefficients,total_noise_coefficient, \
+                  "Max Noise in Pool:" + str(-log(min_percentage)), "Max Total Noise:" + str(-4*log(min_percentage))
 
+        if raw_output:
+            raw_output_string = ",".join([chromosome] + [str(column)] + winners + [direction]) + "\n"
+            raw_output.write(raw_output_string)
 
         # Check the Noise
         if total_noise_coefficient > -4*log(min_percentage) or [coeff for coeff in noise_coefficients if coeff > -log(min_percentage)]:
-            # Either all the pools are noise-y or there is a single pool that has too much noise
+            # Either all the pools are noisy or there is a single pool that has too much noise
             continue
-        
+
         # Should be at least the minimum amount of pools (3) called
         # and the winners must be different. This is rather coarse.
-        if len(winners) >= min_amount_of_pools and not (column - prev_column < min_distance and winners == prev_winners):
-            
-            output_string = ",".join([chromosome]+[str(column)] + winners)
+        if len(winners) >= min_amount_of_pools and not (column - prev_column < min_distance and winners == prev_winners and direction==prev_direction):
+                
+            output_string = ",".join([chromosome]+[str(column)] + winners + [direction])
             output_file.write(output_string + "\n")
 
             prev_column = column
             prev_winners = winners[:]
+            prev_direction = direction
 
 
-def calculate_winners(chrom_frame_subset,min_reads):
+def calculate_winners(chrom_frame_subset,min_reads,debug=False):
     """
     Takes a subset of a DF and calculate a winner from
     that specific subset of columns
@@ -261,9 +284,13 @@ def calculate_winners(chrom_frame_subset,min_reads):
           does not increase the size of the list.
     """
     frequency_totals = sum(chrom_frame_subset)
+    max_freq = max(chrom_frame_subset)
 
-    if max(chrom_frame_subset) >= min_reads:
-        return [chrom_frame_subset.index[chrom_frame_subset.argmax()][:3]]
+    if debug:
+        print chrom_frame_subset,max(chrom_frame_subset),frequency_totals,
+
+    if max_freq >= min_reads:
+        return [chrom_frame_subset.index[chrom_frame_subset.argmax()][:3] + ":" + str(max_freq) + ":" + str(frequency_totals)]
 
     return []
 
@@ -283,11 +310,16 @@ def calculate_noise_coefficient(chrom_frame_subset):
     return [-1*log(highest_percentage)]
 
 
-def pool_cleaner(pool_calls,min_distance=75):
+def pool_cleaner(pool_calls,min_distance=76):
     """
     Takes in a path/name to an called pool file and removes close calls
 
     Assumes that the number of unique pools is 4 and the min is 3
+
+    What it does:
+    - if there are two pools within the min distance, and one pool is a subset
+      of the other, and the directions are the same
+
     """
 
     with open(pool_calls,"r") as input_file:
@@ -312,23 +344,41 @@ def pool_cleaner(pool_calls,min_distance=75):
                 compare.append(current_call)
                 
             # This will only excecute if we have two reads stored in compare
-            prev_row      = compare[0][:]
-            prev_position = int(compare[0][1])
-            prev_winners  = compare[0][2:]
+            # New data has freqs with every pool call so only the first 3 characters
+            # are needed from the winners
+            prev_row       = compare[0][:]
+            prev_position  = int(compare[0][1])
+            prev_winners   = [x[:3] for x in compare[0][2:-1]]
+            prev_direction = compare[0][-1]
 
-            current_row      = compare[1][:]
-            current_position = int(compare[1][1])
-            current_winners  = compare[1][2:]
+            current_row       = compare[1][:]
+            current_position  = int(compare[1][1])
+            current_winners   = [x[:3] for x in compare[1][2:-1]]
+            current_direction = compare[1][-1]
 
-            # Within 50bps and 3 out of 4 pools are in prev
-            if current_position - prev_position <= min_distance and \
-               len([x for x in current_winners if x in prev_winners]) >= 3:
+            position_differential = current_position - prev_position
+
+            # Within 50bps and 3 out of 4 pools are in prev, same direction
+            if position_differential <= min_distance and \
+               len([x for x in current_winners if x in prev_winners]) >= 3 and \
+               prev_position == current_position:
 
                # Print Only the row that has the most winners
                most_calls = find_max_pool_calls(prev_row,current_row)
                output_file.write(",".join(most_calls) + "\n")
 
                # Dump both rows
+               compare = []
+
+            # At least 3 out of four are in Prev within Window and Directions are different
+            # This is a real insert!
+            elif position_differential <= min_distance and \
+               len([x for x in current_winners if x in prev_winners]) >= 3 and \
+               prev_direction != current_direction:
+
+               # Print both to the same line
+               output_file.write(",".join(prev_row + current_row) + "\n")
+
                compare = []
 
             else:
@@ -350,7 +400,7 @@ def find_max_pool_calls(prev,current):
 
 
 # ---- Pipelines
-def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd(),debug=False):
+def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd(),debug=False,raw_output=False):
     """
     This is the canonical version for the HTML TDNA Seq pipeline.
     Inputs: An Annoj formatted HTML.
@@ -371,12 +421,24 @@ def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd(),debug=False):
     # Fetcher... returns a dict that has all the sql information with the samples
     samples = fetcher_html_parser.html_parser(abs_path_to_html_page)
 
+
+    # Main Start
+    # make a directory and change into it 
+    make_dir = "mkdir %s" % output_file_name
+    subprocess.call(make_dir,shell=True)
+    os.chdir(output_file_name)
+
+    if raw_output:
+        raw_output_file = open(output_file_name + ".raw.out","w")
+    else:
+        raw_output_file = None 
+
     with open(output_file_name + ".out","w") as output_file:
         for chromosome in chromosomes:
             print(chromosome)
             print("\tGenerating Chromsome Data Frame")
 
-            chrom_frame = fillChromosomeFromMySQL(samples_with_sql_information=samples,
+            chrom_frame,positions_directions = fillChromosomeFromMySQL(samples_with_sql_information=samples,
                                                   chromosome=chromosome,debug=debug)
 
             # There must be at least 4 non NA's in a column
@@ -387,10 +449,21 @@ def html_pipeline(abs_path_to_html_page,output_dir=os.getcwd(),debug=False):
 
             # Start Calling Pools from Columns
             print("\tCalling Pools")
-            pool_caller(chrom_frame,output_file,chromosome,debug=debug)
+            pool_caller(chrom_frame,
+                        output_file,
+                        chromosome,
+                        min_percentage=0.92,
+                        min_reads=2,
+                        min_distance=50,
+                        debug=debug,
+                        raw_output=raw_output_file,
+                        positions_directions=positions_directions)
     
     print("\tCleaning Pools")
     pool_cleaner(output_file_name + ".out")
+
+    if raw_output:
+        raw_output_file.close()
 
 
 # ---- Misc
@@ -448,11 +521,11 @@ if __name__=="__main__":
     try:
         html_page = sys.argv[1]
     except IndexError:
-        print("I'm out!")
+        print("You gotta give me a PATH to an HTML Page!")
         sys.exit(1)
 
     if not os.path.isfile(html_page):
-        print("I'm Out!")
+        print("\nThat file doesn't exist! Check the path you gave me\n")
         sys.exit(1)
 
-    html_pipeline(html_page,debug=False)
+    html_pipeline(html_page,debug=False,raw_output=True)

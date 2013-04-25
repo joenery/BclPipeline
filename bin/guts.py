@@ -268,7 +268,7 @@ class project(object):
             if tdna:
                 self.getTrackDefintionsAndFetchers(project)
 
-    def callTDNAPools(self):
+    def callTDNAPools(self,debug=False):
         """
         The chromsomes must refer to the Assembly number that is in the SQL
         database. Chromosomes can be inferred from the genome selected to bowtie
@@ -287,7 +287,10 @@ class project(object):
         # Now For each Project Call Pools
         for tdna_project in tdna_projects:
             # Get chromosomes from project
-            project_chromsomes = self.project_chromosomes[tdna_project]
+            if not debug:
+                project_chromosomes = self.project_chromosomes[tdna_project]
+            else:
+                project_chromosomes = [1]
 
             # Check to make sure every pool has the SQL information
             samples = [x for x in self.projects[tdna_project] if self.projects[tdna_project][x]["destination"] != ""]
@@ -310,16 +313,20 @@ class project(object):
             output_file_name = os.path.join(output_file_name,"Project_" + tdna_project)
             output_file_name = os.path.join(output_file_name,"Called_Pools.out")
 
+            # Create object for RAW output.
+            raw_output_file = open(output_file_name.replace(".out",".raw.out"),"w")
+
             with open(output_file_name,"w") as pools_output:
                 print("Calculating Pools for %s" % (tdna_project))
-                for chromosome in project_chromsomes:
-                    chromosome_name = "chr"+str(chromosome)
 
-                    print("  " + chromosome_name)
+                for chromosome in project_chromosomes:
+                    chromosome_name = "chr"+str(chromosome)
+                    print(chromosome)
                     print("\tGenerating Chromsome Data Frame")
 
-                    chrom_frame = fillChromosomeFromMySQL(samples_with_sql_information=samples_and_sql_info,
-                                                          chromosome=chromosome_name)
+                    chrom_frame,positions_directions = fillChromosomeFromMySQL(samples_with_sql_information=samples_and_sql_info,
+                                                          chromosome=chromosome_name,
+                                                          debug=debug)
 
                     # There must be at least 4 non NA's in a column
                     # Replace NA's in column with 0's
@@ -329,8 +336,16 @@ class project(object):
 
                     # Start Calling Pools from Columns
                     print("\tCalling Pools")
-                    pool_caller(chrom_frame,pools_output,chromosome_name)
-
+                    pool_caller(chrom_frame,
+                                pools_output,
+                                chromosome=chromosome_name,
+                                min_percentage=0.92,
+                                min_reads=2,
+                                min_distance=50,
+                                debug=debug,
+                                raw_output=raw_output_file,
+                                positions_directions=positions_directions)
+        
             print("\tCleaning Pools")
             pool_cleaner(output_file_name)
 
@@ -340,15 +355,15 @@ class project(object):
             pools_frequencies = {sample:0 for sample in samples}
 
             print("\tGetting Frequencies")
-            with open(output_file_name + ".clean","r") as called_pools:
+            with open(output_file_name,"r") as called_pools:
                 for line in called_pools:
                     row = line.strip().split(",")
-                    pools = row[2:]
+                    pools = [x[:3] for x in row[2:-1]]
 
                     for pool in pools:
                         pools_frequencies[pool] += 1
 
-            with open(output_file_name + ".clean.freqs","w") as pools_freqs:
+            with open(output_file_name + ".freqs","w") as pools_freqs:
 
                 pools = pools_frequencies.keys()[:]
                 pools.sort(key=lambda x:(x[0],int(x[1:])))
@@ -357,6 +372,8 @@ class project(object):
                     freq = str(pools_frequencies[pool])
                     to_write = " ".join([pool,freq])
                     pools_freqs.write(to_write + "\n")
+
+            raw_output_file.close()
 
     def bclStartEmailBlast(self):
         """
@@ -877,13 +894,15 @@ class project(object):
 
 
 if __name__=="__main__":
+    """
+    This method is NOT static and can be used for testing any feature you like.
+    """
     print("Testing...")
 
     p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130416_LAMARCK_3154_AD234WACXX",\
-                sample_sheet   = "SampleSheet_130416_LAMARCK_3154.csv",\
+                sample_sheet   = "SampleSheet_Pools_Test.csv",\
                 bcl_output_dir = "Unaligned")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.importProjects2Annoj()
-    p.callTDNAPools()
+    p.callTDNAPools(debug=True)

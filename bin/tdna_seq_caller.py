@@ -361,7 +361,7 @@ def pool_cleaner(pool_calls,min_distance=76):
             # Within 50bps and 3 out of 4 pools are in prev, same direction
             if position_differential <= min_distance and \
                len([x for x in current_winners if x in prev_winners]) >= 3 and \
-               prev_position == current_position:
+               prev_direction == current_direction:
 
                # Print Only the row that has the most winners
                most_calls = find_max_pool_calls(prev_row,current_row)

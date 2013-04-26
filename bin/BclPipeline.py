@@ -43,6 +43,7 @@ def verifyRunFolder(run):
 
     return run
 
+
 def watchRunFolder(run,sleep):
     """
     Args:
@@ -73,6 +74,7 @@ def watchRunFolder(run,sleep):
                     break
 
         time.sleep(sleep)
+        
 
 def parseConfigFile(path_to_file):
     """

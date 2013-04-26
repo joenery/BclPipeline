@@ -345,7 +345,7 @@ class project(object):
                                 debug=debug,
                                 raw_output=raw_output_file,
                                 positions_directions=positions_directions)
-        
+
             print("\tCleaning Pools")
             pool_cleaner(output_file_name)
 
@@ -900,9 +900,9 @@ if __name__=="__main__":
     print("Testing...")
 
     p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130416_LAMARCK_3154_AD234WACXX",\
-                sample_sheet   = "SampleSheet_Pools_Test.csv",\
+                sample_sheet   = "SampleSheet_130416_LAMARCK_3154.csv",\
                 bcl_output_dir = "Unaligned")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.callTDNAPools(debug=True)
+    p.callTDNAPools(debug=False)

@@ -265,8 +265,8 @@ class project(object):
                 upload2mysql(destination,database,sample_name,mysql_user,mysql_password,tdna_filter=tdna)
 
             # This Method is optimized only for TDNA 
-            if tdna:
-                self.getTrackDefintionsAndFetchers(project)
+           
+            self.getTrackDefintionsAndFetchers(project,is_tdna=tdna)
 
     def callTDNAPools(self,debug=False):
         """
@@ -759,8 +759,86 @@ class project(object):
             self.notifications
         except AttributeError:
             self.notifications = notifications()
+    def getTrackDefintionsAndFetchers(self,project,is_tdna):
+        """
+        This method is called from the ImportProjectToAnnoj method.
+        This is a general method for all projects. If the project is
+        TDNA then the specialised method will run.
+        
+        Args:
+        project: reference to a project in the self.projects dict
+        is_tdna: a boolean representing if the projects is TDNA
+        """
+        print("Getting Track Definitions and fetchers for %s" % (project))
 
-    def getTrackDefintionsAndFetchers(self,project):
+        if is_tdna:
+            self.getTrackDefintionsAndFetchersTDNA(project)
+            return
+
+        # General Method
+        fetcher_dir = """FETCHER_DIR"""
+        top_dir = os.getcwd()
+
+        # Make dir
+        os.chdir(os.path.join(self.run,os.path.join(self.bcl_output_dir,"Project_" + project)))
+        make_dir = "mkdir complete_fetchers_and_definitions"
+        subprocess.call(make_dir,shell=True)
+        os.chdir("complete_fetchers_and_definitions") 
+
+        # Now The script is in the complete_fetchers_and_defintions directory
+        # Method will now prep the track_definitions HTML snippet
+        samples = self.projects[project].keys()[:]
+        samples.sort()
+
+        with open(project + ".trackdefintions","w") as track_definitions:
+            track_definitions.write("tracks : [\n\n")
+            track_definitions.write("""//Models\n{\nid   : 'tair9',\nname : 'Gene Models',\ntype : 'ModelsTrack',\npath : 'Annotation models',\ndata : '../../fetchers/models/tair9.php',\nheight : 80,\nshowControls : true\n},\n""")
+            
+            # Write out Sample information to the Track Definitions Page
+            for sample in samples:
+                tablename = sample
+
+                track_definitions.write("{\n")
+                track_definitions.write(" id: '%s',\n"   % tablename)
+                track_definitions.write(" name: '%s',\n" % tablename)
+                track_definitions.write(" type: 'ReadsTrack',\n")
+                track_definitions.write(" path: 'NA',\n")
+                track_definitions.write(" data: '%s/%s',\n" % (fetcher_dir,tablename + ".php"))
+                track_definitions.write(" height: '25', \n")
+                track_definitions.write(" scale: 0.1\n")
+                track_definitions.write("},\n")
+                
+
+            # Finish Defintitions by printing them to the active tracks
+            track_definitions.write("\n\n],\n\nactive : [\n'tair9',")
+
+            for sample in samples:
+                track_definitions.write("'" + sample + "',")
+            track_definitions.write("\n],\n")
+
+        # Create The fetchers for each Individual Sample
+        for sample in self.projects[project]:
+            run_path = self.run
+            run_name = os.path.basename(self.run[:-1]) if self.run[-1] == "/" else os.path.basename(self.run)
+
+            tablename = sample + "_" + run_name
+            database  = self.projects[project][sample]["database"]
+            host      = self.projects[project][sample]["destination"]
+            tdna      = self.projects[project][sample]["tdna"]
+            includes_dir = "../../includes"
+
+            with open(tablename + ".php","w") as fetcher:
+                fetcher.write("<?php\n")
+                fetcher.write("$append_assembly = false;\n")
+                fetcher.write("$table = '%s.%s';\n" % (database,tablename) )
+                fetcher.write("$title = '%s';\n" % (tablename))
+                fetcher.write("$info = '%s';\n"  % (tablename.replace("_"," ")))
+                fetcher.write("""$link = mysql_connect("%s","mysql","rekce") or die("failed");\n""" % (host))
+                fetcher.write("require_once '%s/common_reads.php';\n" % (includes_dir))
+                fetcher.write("?>\n")
+
+
+    def getTrackDefintionsAndFetchersTDNA(self,project):
         """
         This is optimized for TDNA 20k, 30k etcetc formats ONLY
         """
@@ -905,4 +983,4 @@ if __name__=="__main__":
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.callTDNAPools(debug=False)
+    p.getTrackDefintionsAndFetchers("tDNA_Salk100k",is_tdna=True)

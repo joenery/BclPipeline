@@ -796,7 +796,9 @@ class project(object):
             
             # Write out Sample information to the Track Definitions Page
             for sample in samples:
-                tablename = sample
+                run_path = self.run
+                run_name = os.path.basename(self.run[:-1]) if self.run[-1] == "/" else os.path.basename(self.run)
+                tablename = sample + "_" + run_name
 
                 track_definitions.write("{\n")
                 track_definitions.write(" id: '%s',\n"   % tablename)
@@ -813,7 +815,7 @@ class project(object):
             track_definitions.write("\n\n],\n\nactive : [\n'tair9',")
 
             for sample in samples:
-                track_definitions.write("'" + sample + "',")
+                track_definitions.write("'" + sample + "_" + run_name  + "',")
             track_definitions.write("\n],\n")
 
         # Create The fetchers for each Individual Sample
@@ -977,10 +979,11 @@ if __name__=="__main__":
     """
     print("Testing...")
 
-    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130416_LAMARCK_3154_AD234WACXX",\
-                sample_sheet   = "SampleSheet_130416_LAMARCK_3154.csv",\
-                bcl_output_dir = "Unaligned")
+    p = project(run_path       = "/mnt/thumper-e4/illumina_runs/130306_JONAS_2147_BD1RY6ACXX/",\
+                sample_sheet   = "SampleSheet_DAP.csv",\
+                bcl_output_dir = "UnalignedAnna")
 
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
-    p.getTrackDefintionsAndFetchers("tDNA_Salk100k",is_tdna=True)
+    #p.importProjects2Annoj()
+    p.getTrackDefintionsAndFetchers("DAP",False)

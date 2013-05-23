@@ -1,5 +1,98 @@
 #!/usr/bin/env python
+import subprocess
+from collections import defaultdict
+import re
+
+# Needs Googe Api's installed
 from gSpreadSheet import *
 
+def illegal_char_replace(string):
+    illegal_bcl_characters = """ ?()[]\=+<>:;"',*|^&`"""
+
+    string = string.replace("/","_").replace("-","_").replace(".","_").replace(" ","_")
+
+    return string
+
 if __name__=="__main__":
-    print("Hello...")
+    print("First: I need to log you into your Google Drive\n")
+        
+    csv = getSpreadsheetCSV()
+    
+    # Get all the Different Runs (if there are any)
+    # Parse the runs in the file
+    runs = defaultdict(list) 
+    for row in csv:
+        run_name = row[11]
+
+        if run_name == "" or run_name == "Run":
+            continue
+        runs[run_name].append(row)
+
+    # Ask User which run to Create Sample Sheet for
+    t = tabCompleter()
+    t.createListCompleter(runs.keys())
+    readline.set_completer(t.listCompleter)
+    
+    if len(runs) > 1:
+        print
+        print("Found Multiple Runs in Worksheet! Select a Run:")
+        print
+        print "\t\t","\t".join(runs.keys())
+        print
+        run = raw_input("Create a Sample Sheet from: ").strip().strip("\n").strip("\t")
+
+    else:
+        run = runs.keys()[0]
+
+    # Ask User Where to Save the file
+    readline.set_completer(t.pathCompleter)
+    while True:
+        destination_folder = raw_input("What folder would you like to save the Sample Sheet to: ")
+        destination_folder = os.path.realpath(destination_folder)
+
+        if destination_folder == "./" or not destination_folder:
+            destination_folder = os.getcwd()
+
+        if not os.path.isdir(destination_folder):
+            print("That Folder doesn't exist!\nTry again!\n")
+        else:
+            break
+
+    sample_sheet_name = raw_input("What would you like to name the Sample Sheet: ")
+
+
+    with open(os.path.join(destination_folder,sample_sheet_name),"w") as sample_sheet_out:
+
+        sample_sheet_out.write("FCID,Lane,Sample_ID,Sample_Ref,Index,Descripton,Control,Recipe,Operator,Sample_Project\n")
+
+        for row in runs[run]:
+
+            owner            = row[1]
+            email_address    = row[2]
+            illumina_adapter = illegal_char_replace(row[3])
+            project          = illegal_char_replace(row[4])
+            sample_name      = illegal_char_replace(row[5])
+            illumina_adapter_sequence = row[6]
+            bowtie           = row[8]
+            mysql_host       = row[9]
+            mysql_database   = row[10]
+            lane             = row[12]
+            
+            # These Are left blank in the spreadsheet although they can be
+            # reapropriated as needed
+            # barcode1         = row[13]
+            # barcode2         = row[14]
+            barcode1_sequence = ""
+            barcode2_sequence = ""
+
+
+            sample_sheet_out.write(",".join(["",
+                                             lane,
+                                             sample_name,
+                                             illumina_adapter,
+                                             illumina_adapter_sequence,
+                                             bowtie + ";" + mysql_host + ";" + mysql_database + ";"+ barcode1_sequence + ";" + barcode2_sequence,
+                                             "",
+                                             "",
+                                             email_address,
+                                             project + "\n"]))

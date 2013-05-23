@@ -241,7 +241,7 @@ def getSpreadsheetCSV():
         print("Please choose one to export:\n")
         print("   ".join(worksheet_titles))
         print 
-        worksheet = raw_input("Which worksheet would you like to export? ").strip("\t").strip("\n")
+        worksheet = raw_input("Which worksheet would you like to export? ").strip("\t").strip("\n").strip()
     else:
         worksheet = worksheet_titles[0]
 

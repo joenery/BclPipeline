@@ -152,6 +152,8 @@ def upload2mysql(host,database,tablename,mysql_user,mysql_password,tdna_filter=F
     """
     """
     
+    host = host.replace("_","-")
+
     to_upload = [("all.aj",tablename)]
 
     if tdna_filter and remove_clones:

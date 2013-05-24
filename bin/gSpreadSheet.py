@@ -192,9 +192,7 @@ def getSpreadsheetCSV():
     spreadsheets_title.sort()
 
     print
-    print("Here's a list of spreadsheets in your Google Drive.")
-    print("Please choose one to export:\n")
-    print("   ".join(spreadsheets_title))
+    print("Hit <TAB> twice for a list of all the spreadsheets you can access")
     print
 
     # Initialize tab completer
@@ -237,9 +235,7 @@ def getSpreadsheetCSV():
 
     if len(worksheet_titles) > 1:
         print
-        print("Here's a list of worksheets in %s" %  spreadsheet_title)
-        print("Please choose one to export:\n")
-        print("   ".join(worksheet_titles))
+        print("Hit <TAB> twice for a list of worksheets.\nChoose the worksheet you'd like to export")
         print 
         worksheet = raw_input("Which worksheet would you like to export? ").strip("\t").strip("\n").strip()
     else:

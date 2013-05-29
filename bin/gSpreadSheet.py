@@ -5,6 +5,7 @@ import sys
 import json
 import readline
 import glob
+import subprocess
 
 # Module from Repo
 from gidConversions import GIDConversion 
@@ -77,6 +78,7 @@ class authorizer(object):
         # Script Location
         script = os.path.realpath(sys.argv[0])
         script_location = os.path.split(script)[0]
+        self.script_location = script_location
         
         self.client_secrets_json = os.path.join(script_location,"client_secrets.json")
 
@@ -84,6 +86,10 @@ class authorizer(object):
             print("Couldn't find client_screts.json in %s" % script_location)
             print("Make sure to download it from your Google API console and place it in your scripts directory")
             sys.exit(1)
+        
+        if [x for x in os.listdir(script_location) if "credentials" in x]:
+            remove_credentials = "rm %s" % (os.path.join(script_location,"credentials"))
+            subprocess.call(remove_credentials,shell=True)
 
     def authorize(self):
         # Step 0 Create Flow
@@ -102,7 +108,7 @@ class authorizer(object):
         credentials = flow.step2_exchange(code)
         
         # Store credentials
-        storage = Storage('credentials')
+        storage = Storage('%s' %(os.path.join(os.path.expanduser("~/"),"credentials")))
         storage.put(credentials)
 
         return storage

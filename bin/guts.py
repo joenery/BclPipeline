@@ -3,15 +3,17 @@ import os
 import sys
 from collections import defaultdict
 import re
-from socket import gethostname
+from socket      import gethostname
 import csv
 
 # My modules
-from bowtieSimple import bowtie_folder
+from bowtieSimple       import bowtie_folder
 from import2annojsimple import *
-from emailnotifications  import notifications
-from genomes import genomes
-from tdna_seq_caller import fillChromosomeFromMySQL,pool_caller,pool_cleaner
+from emailnotifications import notifications
+from genomes            import genomes
+from tdna_seq_caller    import fillChromosomeFromMySQL,pool_caller,pool_cleaner
+from parseGFF           import *
+
 
 def system_call(command,err_message,admin_message=False,extra=None,shell=False):
     """
@@ -40,6 +42,10 @@ def system_call(command,err_message,admin_message=False,extra=None,shell=False):
 
         extra.adminRunInfoBlast(subject,text)
         sys.exit(1)
+
+class GffError( Exception ):
+    pass
+
 
 class project(object):
 
@@ -78,6 +84,12 @@ class project(object):
 
         # Get Host name
         self.host = gethostname()
+
+        # Get Script Location
+        path_to_script = os.path.realpath(sys.argv[0])
+        path_to_script_dir = os.path.split(path_to_script)[0]
+        
+        self.script_dir = path_to_script_dir
 
     def parseSampleSheet(self):
         """
@@ -171,9 +183,7 @@ class project(object):
         # Parse Emails
         self.getEmailsAndProjects()
 
-        # Deprocated
-        #     # Private Method Call
-        #     self.convertSampleSheet()
+        
 
     def runConfigureBclToFastq(self,bcl_options):
 
@@ -197,9 +207,6 @@ class project(object):
 
         system_call(["make","-j","8"],"Make Failed",admin_message=True,extra=self,shell=True)
 
-        # DEPROCATED
-        # if self.undetermined:
-        #     self.grabUndetermined()
 
     def bowtieProjects(self,processors=10):
 
@@ -268,6 +275,7 @@ class project(object):
            
             self.getTrackDefintionsAndFetchers(project,is_tdna=tdna)
 
+    
     def callTDNAPools(self,debug=False):
         """
         The chromsomes must refer to the Assembly number that is in the SQL
@@ -375,6 +383,66 @@ class project(object):
 
             raw_output_file.close()
 
+    def _loadGenomeAnnotations(self,genome,chromosomes_output):
+        """
+        Args:
+            genome             -> Name of the genome to load into memory
+            chromosomes_output -> an empty dictionary. Method will use pass by reference
+
+        Returns:
+            nothing
+        """
+        
+        # Is the genome in chromosome annotations?
+        chromosome_annotations_dir = os.path.join(self.script_dir,"Chromosome_Annotations")
+        
+        available_annotations = [x.lower() for x in os.listdir(chromosome_annotations_dir) if os.path.isdir(os.path.join(chromosome_annotations_dir,x))]
+        available_gffs = [x for x in os.listdir(chromosome_annotations_dir) if "gff" in x.lower()]
+        
+        gff = [x for x in available_gffs if genome in x.lower()]
+
+        if not genome.lower() in available_annotations and gff :
+            # Check to see if there is a gff to make annotations
+            gff = os.path.join(chromosome_annotations_dir,gff[0])
+
+            print("Creating annotations for %s" % genome)
+            parseGFF(gff)
+
+        elif not genome.lower() in available_annotations and not gff:
+            raise GffError("Could not find an appropriate gff or annotations for %s" % genome)
+
+        genome_annotations_dir = os.path.join(chromosome_annotations_dir,genome)
+
+        chromosomes = [os.path.join(genome_annotations_dir,x) for x in os.listdir(genome_annotations_dir)]
+
+        # Prep output dictionary
+        for chromosome in chromosomes:
+            chromosome = os.path.basename(chromosome)
+
+            chromosomes_output[chromosome] = {}
+
+        # Load Chromosomes into Memory
+        for chromosome in chromosomes:
+            print("Loading %s into memory." % chromosome)
+            
+            with open(chromosome,"r") as chrm:
+                chromosome = os.path.basename(chromosome)
+
+                for line in chrm:
+                    row             = line.strip().split()
+                    position        = row[0]
+                    positive_strand = row[1]
+                    negative_strand = row[2]
+                    
+                    chromosomes_output[chromosome][position] = (positive_strand,negative_strand)
+
+                
+    def _annotatePosition(self,chromosomes,position):
+        """
+        This is a very general method that will
+        """
+
+    
     def bclStartEmailBlast(self):
         """
         """
@@ -466,273 +534,6 @@ class project(object):
 
         return {"genome":genome, "destination":destination,"database":database,"barcode1":barcode1,"barcode2":barcode2}
 
-    # Deprocated
-    def convertSampleSheet(self,number_of_lanes=8):
-        print("Found Samples without Indexes")
-        print("Saving new SampleSheet as _tmp.csv")
-        print("Old SampleSheet will be unmodified")
-
-        all_lanes = {str(x):[] for x in range(1,number_of_lanes + 1)}
-
-        # grab the lanes and sort on them
-        with open(self.sample_sheet,"r") as sample_sheet:
-
-                for i,line in enumerate(sample_sheet):
-
-                    if i == 0:
-                        header = line
-                        continue
-
-                    row = line.strip().split(",")
-
-                    lane = row[1]
-
-                    all_lanes[lane].append(line)
-
-        keys = all_lanes.keys()
-        keys.sort()
-
-        # New Sample sheet
-        sample_sheet_no_extension = os.path.splitext(os.path.basename(self.sample_sheet))[0]
-        sample_sheet_no_extension += "_tmp.csv"
-
-
-        with open(self.basecalls + "/" + sample_sheet_no_extension,"w") as output_file:
-
-            output_file.write(header)
-
-            for lane in keys:
-                # ConfigureBclToFastq only needs one Sample in a lane to create an Undetermined Indicies
-                # If there happens to be Samples with Indicies in the lane then those samples will be written
-                # back out to disk.
-
-                all_lanes[lane].sort(key=lambda x: x[4],reverse=True)
-
-                if not all_lanes[lane]:
-                    continue
-
-                # Check and see if the first Sample in the lane has a Index. If so loop over lane and print
-                # out all the samples with Indexes. Samples without Indexes will be put in Undetermined Indexes for 
-                # that lane.
-
-                first_sample = all_lanes[lane][0].split(",")
-
-                if first_sample[4] != "":
-
-                    for sample in all_lanes[lane]:
-                        if sample.split(",")[4] != "":
-                            output_file.write(sample)
-
-                else:
-                    first_sample[2]  = "lane" + str(first_sample[1])
-                    first_sample[-1] = "Undetermined_indices\n"
-                    output_file.write(",".join(first_sample))
-
-        self.sample_sheet = os.path.abspath(sample_sheet_no_extension)
-        self.undetermined = True
-
-        print("Will now use %s as SampleSheet" % sample_sheet_no_extension)
-
-    # Deprocated
-    def grabUndetermined(self):
-        """
-        # NOTE: This code has since been deprocated. It is still avaiable in case there is a need for this method
-        This code is ugly as sin. Sorry :-(
-        """
-
-        # Grab all the undetermined indices samples
-        # Files are going to be in Undetermined_indices at the top of the run folder in output dir
-        # Get all the samples in a particular lane and loop through them.
-
-        lanes = defaultdict(list)
-
-        # Put all samples without indexes in to a dict where
-        # Keys: lane 
-        # Vals: list of samples in lane
-
-        for project in self.projects:
-
-            for sample in self.projects[project]:
-
-                if self.projects[project][sample]["index"] == "":
-
-                    lanes[self.projects[project][sample]["lane"]].append(self.projects[project][sample])
-
-                else:
-                    continue
-
-        # Now using the lanes dictionary
-        # Loop through the run/Bcl_Output_Dir/Undertermined_indices
-        # 1) If there are gz files. Gunzip them.
-        # 2) Create a list of R1 and R2 files. sort them and paste each file together
-        # 3) If those steps have been done. Loop through each file and pull out reads
-        #    corresponding to the barcodes for those samples. Save the output to this in the Project -> Sample
-        #    folder structure.
-
-        print("Preparing the Undetermined_indices folder in %s" % (self.run + "/" + self.bcl_output_dir))
-
-        # Check to see if the Project_Whatever folder exists in the BCL output directory
-        # If a lane is all undetermined (for instance) create that directory
-        self.checkProjectFolders()
-
-        # Move in to Undetermined and start parsing out Samples
-        undetermined_indices_path = self.run + "/" + self.bcl_output_dir + "/Undetermined_indices"
-
-        os.chdir(undetermined_indices_path)
-        print("Currently working in %s" % os.getcwd() )
-
-        for lane in lanes:
-            # Change dir into the lane we're in
-            # if there are gz's gunzip them
-            # paste together the files and output them with a uniq name 001.fastq.tmp etc
-
-            read_not_pair_end = False
-
-            lane_path = os.getcwd() + "/Sample_lane" + lane 
-            os.chdir(lane_path)
-            print("Now in %s" % os.getcwd())
-
-            # If there are gz_files...gunzip them!
-            gz_files = [x for x in os.listdir(os.getcwd()) if ".gz" in x]
-
-            if len(gz_files) != 0:
-                print("Found gz files. Uncompressing them.")
-                gunzip = "gunzip *.gz"
-                subprocess.call(gunzip,shell=True)
-
-            # Get All the R1's and R2's
-            R1 = [x for x in os.listdir(os.getcwd()) if "_R1_" in x]
-            R2 = [x for x in os.listdir(os.getcwd()) if "_R2_" in x]
-
-            R1.sort()
-            R2.sort()
-
-            R1andR2 = [(x,y) for x,y in zip(R1,R2)]
-
-            if len(R2) != 0:
-                # Since this step takes for ever, check to make sure
-                # if this has already been done. If not do it.
-
-                fastq_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x and ".fastq" in x]
-
-                if len(fastq_files) == 0:
-                    print("Combining R1's and R2's in lane %s" % (lane))
-
-                    for pair in R1andR2:
-                        R1_name = pair[0]
-                        R2_name = pair[1]
-
-                        match       = re.search("[0-9][0-9][0-9](?=[.fastq])",R1_name)
-                        pair_number = match.group(0)
-
-                        paste_command = ["paste",R1_name,R2_name,"> R1_R2_" + pair_number + ".fastq"]
-                        paste_command = " ".join(paste_command)
-                        subprocess.call(paste_command,shell=True)
-
-                    fastq_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and "R2" in x and ".fastq" in x]
-
-                else:
-                    print("R1 and R2's already combined. Skipping step")
-
-            else:
-                print("Run is not Pair End ->")
-                read_not_pair_end = True
-                fastq_files = [x for x in os.listdir(os.getcwd()) if "R1" in x and ".fastq" in x]
-
-            # Start going through samples and pulling them out
-            print("Pulling Out Samples:")
-            for sample in lanes[lane]:
-
-                project     = sample["project"]
-                sample_name = sample["sample_name"]
-                sample_lane = sample["lane"]
-                barcode1    = sample["barcode1"]
-                barcode2    = sample["barcode2"]
-
-                barcode1_length = len(barcode1)
-                barcode2_length = len(barcode2)
-
-                print "\t",sample_name,barcode1,barcode2
-
-                # If the stuff isn't barcoded. Skip
-                if barcode1_length == 0:
-                    continue
-
-                # With sample make a folder in the Project folder called Sample_sample
-                # Open an output file in there.
-                # for each Fastq in the R1 R2 fastq's
-                # if the barcodes match spit that out to the output file
-                make_sample_dir = ["mkdir",self.run + "/" + self.bcl_output_dir + "/Project_" + project + "/Sample_" + sample_name]
-                subprocess.call(make_sample_dir)
-
-
-                # Writing the output to be in the run -> Project -> Sample format
-                # That way the Bowtie and Import2Annoj steps don't have to be modified
-
-                with open(self.run + "/" + self.bcl_output_dir + "/Project_" + project + "/Sample_" + sample_name + "/lane" + sample_lane + "_" + \
-                          sample_name + ".fastq","w") as output_file:
-                    
-
-                    print("\tWorking on %s in lane %s" % (sample_name,sample_lane))
-                   # Loop through combined R1and R2 files
-                    for r1andr2 in fastq_files:
-
-                        with open(r1andr2,"r") as fastq_file:
-
-                            for i,line in enumerate(fastq_file):
-
-                                if i % 4 == 0:
-                                    readID = line.strip().split()[0]
-
-                                elif i % 4 == 1:
-                                    sequences = line.strip().split()
-
-                                    sequence1 = sequences[0]
-                                    sequence_barcode1 = sequence1[:barcode1_length]
-                                    
-                                    if read_not_pair_end == False:
-                                        sequence2 = sequences[1]
-                                        sequence_barcode2 = sequence2[:barcode2_length]
-
-                                elif i % 4 == 2:
-                                    qual1 = line.strip()
-
-                                elif i % 4 == 3:
-                                    qual2 = line.strip()
-
-                                    if (read_not_pair_end == False and sequence_barcode1 == barcode1 and sequence_barcode2 == barcode2) \
-                                            or (read_not_pair_end == True and sequence_barcode1 == barcode1):
-                                        
-                                        output_file.write(readID.strip() + "\n")
-
-                                        # Removing Barcodes
-                                        output_file.write(sequence1[barcode1_length:].strip() + "\n")
-
-                                        # Since the barcodes are removed the Quality information needs to
-                                        # be truncated too!
-                                        output_file.write(qual1.split()[0].strip() + "\n" )
-                                        output_file.write(qual2.split()[0].strip()[barcode1_length:] + "\n")
-
-
-            # Change Directory back to Top of Undetermined
-            os.chdir(undetermined_indices_path)
-
-    # Deprocated
-    def checkProjectFolders(self):
-
-        for project in self.projects:
-            # Check to see if that project folder exists in
-            # the bcl output dir
-
-            project_folder_path = self.run + "/" + self.bcl_output_dir + "/" + "Project_" + project
-
-            if not os.path.isdir(project_folder_path):
-                create_project_folder = ["mkdir",project_folder_path]
-                subprocess.call(create_project_folder)
-
-            else:
-                # That project Folder Exists and we don't have to create it
-                continue
 
     def getEmailsAndProjects(self):
         """
@@ -759,6 +560,8 @@ class project(object):
             self.notifications
         except AttributeError:
             self.notifications = notifications()
+
+
     def getTrackDefintionsAndFetchers(self,project,is_tdna):
         """
         This method is called from the ImportProjectToAnnoj method.
@@ -986,4 +789,6 @@ if __name__=="__main__":
     print("Parsing Sample Sheet")
     p.parseSampleSheet()
     #p.importProjects2Annoj()
-    p.getTrackDefintionsAndFetchers("DAP",False)
+    #p.getTrackDefintionsAndFetchers("DAP",False)
+    chromosomes = {}
+    p._loadGenomeAnnotations("tair10",chromosomes)

@@ -14,7 +14,6 @@ def illegal_char_replace(string):
     return string
 
 if __name__=="__main__":
-    print("First: I need to log you into your Google Drive\n")
         
     csv = getSpreadsheetCSV()
     

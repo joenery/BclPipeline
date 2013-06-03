@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # Standard Python Modules
-import os
-import sys
-import json
-import readline
 import glob
+import json
+import os
+import readline
+import sha
 import subprocess
+import sys
 
 # Module from Repo
 from gidConversions import GIDConversion 
@@ -74,44 +75,110 @@ class authorizer(object):
     
     Returns: oauth2clint.file Storage object with credentials
     """
-    def __init__(self):
+    def __init__(self,multi_user=False):
         # Script Location
-        script = os.path.realpath(sys.argv[0])
-        script_location = os.path.split(script)[0]
+        script               = os.path.realpath(sys.argv[0])
+        script_location      = os.path.split(script)[0]
         self.script_location = script_location
         
         self.client_secrets_json = os.path.join(script_location,"client_secrets.json")
+        self.credentials_storage = os.path.join(script_location,"credentials")
+
+        self.multi_user = multi_user
 
         if not os.path.isfile(self.client_secrets_json):
             print("Couldn't find client_screts.json in %s" % script_location)
             print("Make sure to download it from your Google API console and place it in your scripts directory")
             sys.exit(1)
         
-        if [x for x in os.listdir(script_location) if "credentials" in x]:
-            remove_credentials = "rm %s" % (os.path.join(script_location,"credentials"))
-            subprocess.call(remove_credentials,shell=True)
+        if not os.path.isfile(self.credentials_storage):
+            self._credentials_are_stored = False
+        
+        else:
+            self._credentials_are_stored = True
 
     def authorize(self):
+        """
+        This is the standard authorizer that can check for credentials.
+        If the system is known only to be used by one person then
+        the regular system will be used.
+
+        If not then a multiUser system is implemented so that users can choose
+        the right drive to log into.
+        """
+        
+        if self._credentials_are_stored:
+            self._refreshCredentials()
+
+        else:
+            self._getNewCredentials()
+
+        return self.storage
+
+
+    def _getNewCredentials(self):
+        """
+        Since there isn't an credentials to work from authorize a new set.
+    
+        Some Google Plus scopes are used to get the User Emails / Names
+        """
+
+        print("First I've got to log you into your Google Drive!")
+
         # Step 0 Create Flow
         flow = flow_from_clientsecrets(self.client_secrets_json,
                                        scope=['https://spreadsheets.google.com/feeds',
-                                              'https://www.googleapis.com/auth/drive'],
+                                              'https://www.googleapis.com/auth/drive',
+                                              'https://www.googleapis.com/auth/userinfo.email',
+                                              'https://www.googleapis.com/auth/userinfo.profile'],
                                        redirect_uri="urn:ietf:wg:oauth:2.0:oob")
 
         # Step 1 Get an authorize URL and get Code
         authorize_url = flow.step1_get_authorize_url()
-        
+    
         print 'Copy and paste the following link in your browser: \n\n%s' % (authorize_url)
         code = raw_input("\n\nEnter verification code: ").strip()
-        
+    
         # Step 2: Exchange Code for credentials
         credentials = flow.step2_exchange(code)
-        
+    
         # Store credentials
-        storage = Storage('%s' %(os.path.join(os.path.expanduser("~/"),"credentials")))
+        storage = Storage(self.credentials_storage)
         storage.put(credentials)
 
-        return storage
+        self.storage = storage
+
+
+    def _refreshCredentials(self):
+        """
+        Query user to see if they are the owner of the credentials.
+        """
+        storage = Storage(self.credentials_storage)
+        credentials = storage.get()
+
+        http = credentials.authorize(Http())
+        response,content = http.request("https://www.googleapis.com/oauth2/v1/userinfo?alt=json",
+                                        method="GET",
+                                        body=None)
+
+        status = response['status']
+        content = json.loads(content)
+
+        if credentials.invalid or status != "200" or not content:
+            self._getNewCredentials()
+
+        user_name = content["name"]
+
+        while True:
+            print("%s is logged in right now" % user_name)
+            answer = raw_input("Is that you [yes/no]: ")
+            if answer.lower() == "yes":
+                break
+            else:
+                self._getNewCredentials()
+                break 
+
+        self.storage = storage
 
 def retrieve_all_files(service):
     """Retrieve a list of File resources.
@@ -241,7 +308,7 @@ def getSpreadsheetCSV():
 
     if len(worksheet_titles) > 1:
         print
-        print("Hit <TAB> twice for a list of worksheets.\nChoose the worksheet you'd like to export")
+        print("\nHit <TAB> twice for a list of worksheets.")
         print 
         worksheet = raw_input("Which worksheet would you like to export? ").strip("\t").strip("\n").strip()
     else:
@@ -273,7 +340,6 @@ def getSpreadsheetCSV():
 if __name__=="__main__":
     
     print("\nWelcome to gSpreadSheet 1.0\n")
-    print("First: I need to log you into your Google Drive\n")
     
     csv = getSpreadsheetCSV()
 
